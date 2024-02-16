@@ -1,4 +1,4 @@
-module sui::assets {
+module su::assets {
   // === Imports ===
   use std::type_name;
   
