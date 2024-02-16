@@ -14,7 +14,7 @@ su = "0x0"
 std = "0x1"
 sui = "0x2"
 
-[dev-addresses]
-owner = "0xdEaD"
-alice = "0xA11CE"
-bob =  "0xB0B"
+# [dev-addresses]
+# owner = "0xdEaD"
+# alice = "0xA11CE"
+# bob =  "0xB0B"

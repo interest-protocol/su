@@ -13,7 +13,7 @@ module su::admin {
 
   // === Public-Mutative Functions ===
 
-  #[allow(unused_use, lint(share_owned))]
+  #[allow(unused_use)]
   fun init(ctx: &mut TxContext) {
     transfer(Admin { id: object::new(ctx) }, sender(ctx));  
   }  
