@@ -84,7 +84,7 @@ module su::treasury {
     su_state::collateral_ratio(su_state)
   }
 
-  public(friend) fun current_state(self: &mut Treasury, repository: &Repository, base_price: u64): SuState {
+  public(friend) fun su_state(self: &mut Treasury, repository: &Repository, base_price: u64): SuState {
     let state = load_treasury_state_maybe_upgrade(self);
 
     compute_su_state(state, repository, base_price)
