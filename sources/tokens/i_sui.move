@@ -1,4 +1,4 @@
-module su::x_sui {
+module su::i_sui {
   // === Imports ===
 
   use std::option;
@@ -9,18 +9,17 @@ module su::x_sui {
 
   // === Structs ===
   
-  struct X_SUI has drop {}
+  struct I_SUI has drop {}
 
   // === Public-Mutative Functions ===
 
-  #[allow(unused_use, lint(share_owned))]
-  fun init(otw: X_SUI, ctx: &mut TxContext) {
+  fun init(otw: I_SUI, ctx: &mut TxContext) {
     let (treasury_cap, coin_metadata) = create_currency(
       otw,
       9,
-      b"xSui",
-      b"Leveraged Sui",
-      b"A leveraged coin with a beta of 0.9",
+      b"iSui",
+      b"Interest Protocol Sui",
+      b"Liquid Staking Token developed by Interest Labs.",
       option::none(),
       ctx
     );
@@ -33,6 +32,6 @@ module su::x_sui {
   
   #[test_only]
   public fun init_for_testing(ctx: &mut TxContext) {
-    init(X_SUI {}, ctx);
+    init(I_SUI {}, ctx);
   }
 }

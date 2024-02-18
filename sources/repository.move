@@ -10,6 +10,8 @@ module su::repository {
 
   // === Friends ===
 
+  friend su::treasury;
+
   // === Structs ===
 
   struct Repository has key {
@@ -22,10 +24,6 @@ module su::repository {
   #[allow(unused_use)]
   fun init(ctx: &mut TxContext) {
     share_object(Repository { id: object::new(ctx), inner: object_bag::new(ctx) });
-  }
-
-  public fun add<K: copy + drop + store, V: key + store>(self: &mut Repository, k: K, v: V) {
-    object_bag::add(&mut self.inner, k, v);
   }
  
   // === Public-View Functions ===
@@ -56,12 +54,16 @@ module su::repository {
 
   // === Public-Friend Functions ===
 
-  public(friend) fun borrow_mut<K: copy + drop + store, V: key + store>(self: &mut Repository, k: K): &mut V {
-    object_bag::borrow_mut(&mut self.inner, k)
+  public(friend) fun add<K: copy + drop + store, V: key + store>(self: &mut Repository, k: K, v: V) {
+    object_bag::add(&mut self.inner, k, v);
   }
 
   public(friend) fun remove<K: copy + drop + store, V: key + store>(self: &mut Repository, k: K): V {
     object_bag::remove(&mut self.inner, k)
+  }
+
+  public(friend) fun borrow_mut<K: copy + drop + store, V: key + store>(self: &mut Repository, k: K): &mut V {
+    object_bag::borrow_mut(&mut self.inner, k)
   }
 
   public(friend) fun destroy_empty(self: Repository) {

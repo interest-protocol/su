@@ -1,4 +1,4 @@
-module su::s_sui {
+module su::f_sui {
   // === Imports ===
 
   use std::option;
@@ -9,17 +9,16 @@ module su::s_sui {
 
   // === Structs ===
   
-  struct S_SUI has drop {}
+  struct F_SUI has drop {}
 
   // === Public-Mutative Functions ===
 
-  #[allow(unused_use, lint(share_owned))]
-  fun init(otw: S_SUI, ctx: &mut TxContext) {
+  fun init(otw: F_SUI, ctx: &mut TxContext) {
     let (treasury_cap, coin_metadata) = create_currency(
       otw,
       9,
-      b"sSui",
-      b"Stable Sui",
+      b"fSui",
+      b"Fractional Sui",
       b"A floating stable coin with a beta of 0.1",
       option::none(),
       ctx
@@ -33,6 +32,6 @@ module su::s_sui {
   
   #[test_only]
   public fun init_for_testing(ctx: &mut TxContext) {
-    init(S_SUI {}, ctx);
+    init(F_SUI {}, ctx);
   }
 }

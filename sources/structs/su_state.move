@@ -79,7 +79,11 @@ module su::su_state {
 
   public fun x_nav(self: SuState): u64 {
     (self.x_nav as u64)
-  }  
+  } 
+
+  public fun collateral_ratio(self: SuState): u64 {
+    ((self.base_supply * self.base_nav * PRECISION) / (self.f_supply * self.f_nav)  as u64)
+  }
 
   public fun max_mintable_f_coin(
     self: SuState,
