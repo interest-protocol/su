@@ -252,7 +252,7 @@ module su::state_math {
     let beta = (beta as u256); 
 
     let rho = state.f_supply * state.f_nav * PRECISION / (state.base_supply * state.base_nav);
-    let x = rho * beta * (int::value(int::add(int::from_u256(PRECISION), earning_ratio))) / (PRECISION * PRECISION);
+    let x = rho * beta * (int::to_u256(int::add(int::from_u256(PRECISION), earning_ratio))) / (PRECISION * PRECISION);
     let ratio = ((PRECISION - x) * PRECISION / (PRECISION - rho) as u64);  
     min(MAX_LEVERAGE_RATIO, ratio)
   }
