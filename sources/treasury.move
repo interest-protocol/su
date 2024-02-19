@@ -2,8 +2,8 @@ module su::treasury {
   // === Imports ===
 
   use sui::clock::Clock;
-  use sui::tx_context::TxContext;
   use sui::object::{Self, UID};
+  use sui::tx_context::TxContext;
   use sui::balance::{Self, Balance};
   use sui::coin::{Self, TreasuryCap};
   use sui::versioned::{Self, Versioned};
@@ -25,7 +25,8 @@ module su::treasury {
 
   const EInvalidVersion: u64 = 0;
   const EMultipleIsTooSmall: u64 = 1;
-  const ENewCollateralRatioIsTooSmall: u64 = 2;
+  const EMultipleIsTooLarge: u64 = 2;
+  const ENewCollateralRatioIsTooSmall: u64 = 3;
 
   // === Constants ===
   
@@ -61,7 +62,6 @@ module su::treasury {
     genesis_price: u64, 
     ctx: &mut TxContext
   ) {
-
     treasury_cap_map::add(treasury_cap_map, f_treasury_cap);
     treasury_cap_map::add(treasury_cap_map, x_treasury_cap);
 
@@ -82,7 +82,7 @@ module su::treasury {
   }
 
   public(friend) fun collateral_ratio(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64): u64 {
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
@@ -90,7 +90,7 @@ module su::treasury {
   }
 
   public(friend) fun su_state(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64): SuState {
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     compute_su_state(state, treasury_cap_map, base_price)
   }
@@ -98,7 +98,7 @@ module su::treasury {
   public(friend) fun max_mintable_f_coin(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64, new_collateral_ratio: u64): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
@@ -108,7 +108,7 @@ module su::treasury {
   public(friend) fun max_mintable_x_coin(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64, new_collateral_ratio: u64): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
@@ -124,7 +124,7 @@ module su::treasury {
   ): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
@@ -139,7 +139,7 @@ module su::treasury {
   ): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
@@ -154,7 +154,7 @@ module su::treasury {
   ): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
@@ -170,7 +170,7 @@ module su::treasury {
   ): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
@@ -178,19 +178,19 @@ module su::treasury {
   }  
 
   public(friend) fun leverage_ratio(self: &mut Treasury, c: &Clock): u64 {
-    let state = load_treasury_state_maybe_upgrade(self);
+    let state = load_treasury_state_and_maybe_upgrade(self);
 
     ema::ema_value(state.ema, c)
   }
 
   // === Private Functions ===
 
-  fun load_treasury_state_maybe_upgrade(self: &mut Treasury): &mut StateV1 {
-    upgrade_treasury_state_to_latest(self);
+  fun load_treasury_state_and_maybe_upgrade(self: &mut Treasury): &mut StateV1 {
+    maybe_upgrade_treasury_state_to_latest(self);
     versioned::load_value_mut(&mut self.inner)
   }
 
-  fun upgrade_treasury_state_to_latest(self: &Treasury) {
+  fun maybe_upgrade_treasury_state_to_latest(self: &Treasury) {
     // * IMPORTANT: When new versions are added, we need to explicitly upgrade here.
     assert!(versioned::version(&self.inner) == STATE_VERSION_V1, EInvalidVersion);
   }
@@ -206,7 +206,7 @@ module su::treasury {
       let f_multiple = compute_multiple(state, base_price); 
 
       let x_supply = coin::total_supply(treasury_cap_map::borrow<X_SUI>(treasury_cap_map));
-      let f_nav = f_sui_nav(state, f_multiple);
+      let f_nav = compute_f_nav(state, f_multiple);
 
       su_state::new(
         base_supply,
@@ -215,7 +215,7 @@ module su::treasury {
         f_supply,
         f_nav,
         x_supply,
-        if (x_supply == 0) PRECISION else x_sui_nav(base_supply, base_nav, f_supply, f_nav, x_supply)
+        if (x_supply == 0) PRECISION else compute_x_nav(base_supply, base_nav, f_supply, f_nav, x_supply)
       )
     };
 
@@ -236,19 +236,18 @@ module su::treasury {
     int::div_down(int::mul(beta, ratio), precision)
   }
 
-  fun f_sui_nav(state: &StateV1, multiple: Int): u64 {
-
+  fun compute_f_nav(state: &StateV1, multiple: Int): u64 {
     if (int::is_neg(multiple))
       assert!(PRECISION > int::to_u64(int::abs(multiple)), EMultipleIsTooSmall)
     else 
-      assert!((PRECISION as u256) * (PRECISION as u256) > int::to_u256(multiple), 0);
+      assert!((PRECISION as u256) * (PRECISION as u256) > int::to_u256(multiple), EMultipleIsTooLarge);
     
     let x = int::to_u64(int::add(int::from_u64(PRECISION), multiple));
 
     mul_div_down(state.last_f_nav, x, PRECISION)
   } 
 
-  fun x_sui_nav(
+  fun compute_x_nav(
     base_supply: u64,
     base_nav: u64,
     f_supply: u64,
