@@ -53,7 +53,7 @@ module su::treasury {
 
   // === Public-Friend Functions ===
 
-  public(friend) fun new_genesis_state(
+  public(friend) fun share_genesis_state(
     treasury_cap_map: &mut TreasuryCapMap,
     f_treasury_cap: TreasuryCap<F_SUI>,
     x_treasury_cap: TreasuryCap<X_SUI>,
