@@ -1,3 +1,4 @@
+#[allow(lint(share_owned))]
 module su::i_sui {
   // === Imports ===
 

@@ -1,6 +1,5 @@
 module su::treasury {
   // === Imports ===
-  use std::type_name::{Self, TypeName};
 
   use sui::clock::Clock;
   use sui::tx_context::TxContext;
@@ -15,7 +14,7 @@ module su::treasury {
   use su::ema::{Self, EMA};
   use sui::transfer::share_object;
   use su::su_state::{Self, SuState};
-  use su::repository::{Self, Repository};
+  use su::treasury_cap_map::{Self, TreasuryCapMap};
 
   use suitears::int::{Self, Int};
   use suitears::math64::mul_div_down;
@@ -55,7 +54,7 @@ module su::treasury {
   // === Public-Friend Functions ===
 
   public(friend) fun new_genesis_state(
-    repository: &mut Repository,
+    treasury_cap_map: &mut TreasuryCapMap,
     f_treasury_cap: TreasuryCap<F_SUI>,
     x_treasury_cap: TreasuryCap<X_SUI>,
     c: &Clock,
@@ -63,8 +62,8 @@ module su::treasury {
     ctx: &mut TxContext
   ) {
 
-    repository::add(repository, type_name::get<F_SUI>(), f_treasury_cap);
-    repository::add(repository, type_name::get<X_SUI>(), x_treasury_cap);
+    treasury_cap_map::add(treasury_cap_map, f_treasury_cap);
+    treasury_cap_map::add(treasury_cap_map, x_treasury_cap);
 
     let state_v1 = StateV1 {
       base_balance: balance::zero(),
@@ -82,43 +81,43 @@ module su::treasury {
     share_object(treasury);
   }
 
-  public(friend) fun collateral_ratio(self: &mut Treasury, repository: &Repository, base_price: u64): u64 {
+  public(friend) fun collateral_ratio(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64): u64 {
     let state = load_treasury_state_maybe_upgrade(self);
 
-    let su_state = compute_su_state(state, repository, base_price);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     su_state::collateral_ratio(su_state)
   }
 
-  public(friend) fun su_state(self: &mut Treasury, repository: &Repository, base_price: u64): SuState {
+  public(friend) fun su_state(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64): SuState {
     let state = load_treasury_state_maybe_upgrade(self);
 
-    compute_su_state(state, repository, base_price)
+    compute_su_state(state, treasury_cap_map, base_price)
   }
 
-  public(friend) fun max_mintable_f_coin(self: &mut Treasury, repository: &Repository, base_price: u64, new_collateral_ratio: u64): (u64, u64) {
+  public(friend) fun max_mintable_f_coin(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64, new_collateral_ratio: u64): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
     let state = load_treasury_state_maybe_upgrade(self);
 
-    let su_state = compute_su_state(state, repository, base_price);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     su_state::max_mintable_f_coin(su_state, new_collateral_ratio)
   }
 
-  public(friend) fun max_mintable_x_coin(self: &mut Treasury, repository: &Repository, base_price: u64, new_collateral_ratio: u64): (u64, u64) {
+  public(friend) fun max_mintable_x_coin(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64, new_collateral_ratio: u64): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
     let state = load_treasury_state_maybe_upgrade(self);
 
-    let su_state = compute_su_state(state, repository, base_price);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     su_state::max_mintable_x_coin(su_state, new_collateral_ratio)
   } 
 
   public(friend) fun max_mintable_x_coin_with_incentives(
     self: &mut Treasury, 
-    repository: &Repository, 
+    treasury_cap_map: &TreasuryCapMap, 
     base_price: u64, 
     new_collateral_ratio: u64,
     incentive_ratio: u64
@@ -127,14 +126,14 @@ module su::treasury {
 
     let state = load_treasury_state_maybe_upgrade(self);
 
-    let su_state = compute_su_state(state, repository, base_price);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     su_state::max_mintable_x_coin_with_incentives(su_state, new_collateral_ratio, incentive_ratio)
   }
 
   public(friend) fun max_redeemable_f_coin(
     self: &mut Treasury, 
-    repository: &Repository, 
+    treasury_cap_map: &TreasuryCapMap, 
     base_price: u64, 
     new_collateral_ratio: u64
   ): (u64, u64) {
@@ -142,14 +141,14 @@ module su::treasury {
 
     let state = load_treasury_state_maybe_upgrade(self);
 
-    let su_state = compute_su_state(state, repository, base_price);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     su_state::max_redeemable_f_coin(su_state, new_collateral_ratio)
   }  
 
   public(friend) fun max_redeemable_x_coin(
     self: &mut Treasury, 
-    repository: &Repository, 
+    treasury_cap_map: &TreasuryCapMap, 
     base_price: u64, 
     new_collateral_ratio: u64
   ): (u64, u64) {
@@ -157,14 +156,14 @@ module su::treasury {
 
     let state = load_treasury_state_maybe_upgrade(self);
 
-    let su_state = compute_su_state(state, repository, base_price);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     su_state::max_redeemable_x_coin(su_state, new_collateral_ratio)
   }  
 
   public(friend) fun max_liquitable(
     self: &mut Treasury, 
-    repository: &Repository, 
+    treasury_cap_map: &TreasuryCapMap, 
     base_price: u64, 
     incentive_ratio: u64,
     new_collateral_ratio: u64      
@@ -173,7 +172,7 @@ module su::treasury {
 
     let state = load_treasury_state_maybe_upgrade(self);
 
-    let su_state = compute_su_state(state, repository, base_price);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     su_state::max_liquitable(su_state, incentive_ratio, new_collateral_ratio)
   }  
@@ -196,17 +195,17 @@ module su::treasury {
     assert!(versioned::version(&self.inner) == STATE_VERSION_V1, EInvalidVersion);
   }
 
-  fun compute_su_state(state: &mut StateV1, repository: &Repository, base_price: u64): SuState {
+  fun compute_su_state(state: &mut StateV1, treasury_cap_map: &TreasuryCapMap, base_price: u64): SuState {
     let base_supply = balance::value(&state.base_balance);
     let base_nav = base_price;
 
     let su_state = if (base_supply == 0) {
       su_state::new(base_supply, base_nav, int::zero(), 0, PRECISION, 0, PRECISION)
     } else {
-      let f_supply = coin::total_supply(repository::borrow<TypeName, TreasuryCap<F_SUI>>(repository, type_name::get<F_SUI>()));
+      let f_supply = coin::total_supply(treasury_cap_map::borrow<F_SUI>(treasury_cap_map));
       let f_multiple = compute_multiple(state, base_price); 
 
-      let x_supply = coin::total_supply(repository::borrow<TypeName, TreasuryCap<F_SUI>>(repository, type_name::get<X_SUI>()));
+      let x_supply = coin::total_supply(treasury_cap_map::borrow<X_SUI>(treasury_cap_map));
       let f_nav = f_sui_nav(state, f_multiple);
 
       su_state::new(
