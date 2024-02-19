@@ -1,12 +1,13 @@
 module su::treasury {
   // === Imports ===
+  use std::type_name::{Self, TypeName};
 
   use sui::clock::Clock;
+  use sui::tx_context::TxContext;
   use sui::object::{Self, UID};
   use sui::balance::{Self, Balance};
   use sui::coin::{Self, TreasuryCap};
   use sui::versioned::{Self, Versioned};
-  use sui::tx_context::{Self, TxContext};
 
   use su::f_sui::F_SUI;
   use su::x_sui::X_SUI;
@@ -37,9 +38,6 @@ module su::treasury {
 
   // === Structs ===
 
-  struct FSuiTreasuryCapKey has store, copy, drop {}
-  struct XSuiTreasuryCapKey has store, copy, drop {}
-
   struct StateV1 has store {
     base_balance: Balance<I_SUI>,
     last_f_nav: u64,
@@ -57,14 +55,22 @@ module su::treasury {
   // === Public-Friend Functions ===
 
   public(friend) fun new_genesis_state(
+    repository: &mut Repository,
+    f_treasury_cap: TreasuryCap<F_SUI>,
+    x_treasury_cap: TreasuryCap<X_SUI>,
     c: &Clock,
     genesis_price: u64, 
     ctx: &mut TxContext
   ) {
+
+    repository::add(repository, type_name::get<F_SUI>(), f_treasury_cap);
+    repository::add(repository, type_name::get<X_SUI>(), x_treasury_cap);
+
     let state_v1 = StateV1 {
       base_balance: balance::zero(),
       last_f_nav: PRECISION,
       genesis_price,
+      // 30 minutes in seconds
       ema: ema::new(c, 1800)
     };
 
@@ -197,10 +203,10 @@ module su::treasury {
     let su_state = if (base_supply == 0) {
       su_state::new(base_supply, base_nav, int::zero(), 0, PRECISION, 0, PRECISION)
     } else {
-      let f_supply = coin::total_supply(repository::borrow<FSuiTreasuryCapKey, TreasuryCap<F_SUI>>(repository, FSuiTreasuryCapKey {}));
+      let f_supply = coin::total_supply(repository::borrow<TypeName, TreasuryCap<F_SUI>>(repository, type_name::get<F_SUI>()));
       let f_multiple = compute_multiple(state, base_price); 
 
-      let x_supply = coin::total_supply(repository::borrow<XSuiTreasuryCapKey, TreasuryCap<F_SUI>>(repository, XSuiTreasuryCapKey {}));
+      let x_supply = coin::total_supply(repository::borrow<TypeName, TreasuryCap<F_SUI>>(repository, type_name::get<X_SUI>()));
       let f_nav = f_sui_nav(state, f_multiple);
 
       su_state::new(

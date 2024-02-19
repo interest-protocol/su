@@ -11,6 +11,7 @@ module su::repository {
   // === Friends ===
 
   friend su::treasury;
+  friend su::metadata;
 
   // === Structs ===
 
