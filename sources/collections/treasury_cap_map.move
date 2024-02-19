@@ -60,6 +60,10 @@ module su::treasury_cap_map {
     object_bag::add(&mut self.inner, type_name::get<CoinType>(), v);
   }
 
+  public(friend) fun remove<CoinType: drop>(self: &mut TreasuryCapMap): TreasuryCap<CoinType> {
+    object_bag::remove(&mut self.inner, type_name::get<CoinType>())
+  }  
+
   public(friend) fun borrow_mut<CoinType: drop>(self: &mut TreasuryCapMap): &mut TreasuryCap<CoinType> {
     object_bag::borrow_mut(&mut self.inner, type_name::get<CoinType>())
   }
