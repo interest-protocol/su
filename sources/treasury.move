@@ -20,6 +20,7 @@ module su::treasury {
   use suitears::math64::mul_div_down;
 
   // === Friends ===
+  friend su::vault;
 
   // === Errors ===
 
@@ -34,13 +35,14 @@ module su::treasury {
   // === Constants ===
   
   const STATE_VERSION_V1: u64 = 1;
-  /// 10%
+  // 10%
   const F_BETA: u64 = 100_000_000;
   // 1 Unit or 100%
   const PRECISION: u64 = 1_000_000_000;
   const INITIAL_MINT_RATIO: u256 = 500_000_000;
   const THIRTY_MINUTES_IN_SECONDS: u64 = 1800;
 
+  // Mint Options
   const MINT_F_COIN: u8 = 0;
   const MINT_X_COIN: u8 = 1;
   const MINT_BOTH: u8 = 2;
