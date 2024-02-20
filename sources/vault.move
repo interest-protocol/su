@@ -13,6 +13,7 @@ module su::vault {
   use su::treasury::{Self, Treasury};
   use su::treasury_cap_map::TreasuryCapMap;
 
+  use suitears::math64::mul_div_up;
   use suitears::oracle::{Self, Price};
 
   // === Errors ===
@@ -22,6 +23,7 @@ module su::vault {
   const ETreasuryMustBeEmpty: u64 = 2;
   const EInvalidFCoinAmountOut: u64 = 3;
   const EInvalidXCoinAmountOut: u64 = 4;
+  const ECannotMintFCoinInLiquidationMode: u64 = 5;
 
   // === Constants ===
 
@@ -36,7 +38,18 @@ module su::vault {
 
   struct Vault has key {
     id: UID,
-    oracle_id: ID
+    oracle_id: ID,
+    standard_fees: Fees,
+    high_fees: Fees,
+    stability_collateral_ratio: u64,
+    liquidation_collateral_ratio: u64
+  }
+
+  struct Fees has store, copy, drop {
+    f_coin_mint: u64,
+    f_coin_redeem: u64,
+    x_coin_mint: u64,
+    x_coin_redeem: u64
   }
 
   // === Public-Mutative Functions ===
@@ -56,9 +69,27 @@ module su::vault {
 
     treasury::share_genesis_state(treasury_cap_map, f_treasury_cap, x_treasury_cap, c, price, base_balance_cap, ctx);
 
+    let standard_fees = Fees {
+      f_coin_mint: 2500000, // 0.25%
+      f_coin_redeem: 2500000, // 0.25%  
+      x_coin_mint: 10000000,
+      x_coin_redeem: 10000000
+    };
+
+    let high_fees = Fees {
+      f_coin_mint: PRECISION, // 100% (it will be disabled)
+      f_coin_redeem: 0,
+      x_coin_mint: 0,
+      x_coin_redeem: PRECISION / 10 // 10%
+    };
+
     let vault = Vault {
       id: object::new(ctx),
-      oracle_id
+      oracle_id,
+      high_fees,
+      standard_fees,
+      stability_collateral_ratio: 200 * PRECISION, // 200% CR
+      liquidation_collateral_ratio: 180 * PRECISION // 170 CR %
     };
 
     share_object(vault);
@@ -89,6 +120,50 @@ module su::vault {
     (f_coin, x_coin)
   }
 
+  public fun mint_f_coin(
+    self: &Vault,
+    treasury: &mut Treasury,
+    treasury_cap_map: &mut TreasuryCapMap,
+    c: &Clock,
+    base_in: Coin<I_SUI>,
+    oracle_price: Price,
+    min_f_coin_amount: u64,
+    ctx: &mut TxContext    
+  ): Coin<F_SUI> {
+    let base_in_value = coin::value(&base_in);
+    assert!(base_in_value != 0, EZeroBaseInIsNotAllowed);
+
+    let base_price = destroy_price(self, oracle_price);
+
+    let (max_base_in_before_stability_mode, _) = treasury::max_mintable_f_coin(
+      treasury, 
+      treasury_cap_map, 
+      base_price, 
+      self.stability_collateral_ratio
+    );
+
+    let (max_base_in_before_liquidation_mode, _) = treasury::max_mintable_f_coin(
+      treasury, 
+      treasury_cap_map, 
+      base_price, 
+      self.liquidation_collateral_ratio
+    );
+
+    assert!(max_base_in_before_liquidation_mode != 0 || max_base_in_before_liquidation_mode >= base_in_value, ECannotMintFCoinInLiquidationMode);
+
+    let fee_in = compute_mint_f_coin_fee(self, &mut base_in, max_base_in_before_stability_mode, max_base_in_before_liquidation_mode, ctx);
+
+    treasury::add_fee(treasury, fee_in);
+
+    let (f_coin, x_coin) = treasury::mint(treasury, treasury_cap_map, base_in, c, base_price, MINT_F_COIN, ctx);
+
+    coin::destroy_zero(x_coin);
+
+    assert!(coin::value(&f_coin) >= min_f_coin_amount, EInvalidFCoinAmountOut);
+
+    f_coin
+  }
+
   // === Public-View Functions ===
 
   // === Admin Functions ===
@@ -102,6 +177,37 @@ module su::vault {
     assert!(self.oracle_id == oracle_id, EInvalidOracle);
 
     (scaled_price / (PRECISION as u256) as u64)
+  }
+
+  fun compute_mint_f_coin_fee(
+    self: &Vault,
+    base_in: &mut Coin<I_SUI>, 
+    max_base_in_before_stability_mode: u64, 
+    max_base_in_before_liquidation_mode: u64,
+    ctx: &mut TxContext
+  ): Coin<I_SUI> {
+    let base_in_value = coin::value(base_in);
+    let fees_in = coin::zero<I_SUI>(ctx);
+
+    // charge normal fees
+    if (max_base_in_before_stability_mode >= base_in_value) {
+      let fee_amount = compute_fee(base_in_value,self.standard_fees.f_coin_mint);
+      coin::join(&mut fees_in, coin::split(base_in, fee_amount, ctx));
+    } else if (
+      base_in_value > max_base_in_before_stability_mode 
+      && max_base_in_before_liquidation_mode >= base_in_value
+    ) {
+      let standard_fee_amount = compute_fee(max_base_in_before_stability_mode,self.standard_fees.f_coin_mint);
+      let high_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,self.high_fees.f_coin_mint);
+      coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + high_fee_amount, ctx)); 
+    } else 
+      abort ECannotMintFCoinInLiquidationMode;
+
+    fees_in
+  }
+
+  fun compute_fee(value: u64, fee: u64): u64 {
+    mul_div_up(value, fee, PRECISION)
   }
 
   // === Test Functions ===  
