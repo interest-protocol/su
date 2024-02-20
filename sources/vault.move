@@ -40,7 +40,7 @@ module su::vault {
     id: UID,
     oracle_id: ID,
     standard_fees: Fees,
-    high_fees: Fees,
+    liquidation_mode_fees: Fees,
     stability_collateral_ratio: u64,
     liquidation_collateral_ratio: u64
   }
@@ -76,7 +76,7 @@ module su::vault {
       x_coin_redeem: 10000000
     };
 
-    let high_fees = Fees {
+    let liquidation_mode_fees = Fees {
       f_coin_mint: PRECISION, // 100% (it will be disabled)
       f_coin_redeem: 0,
       x_coin_mint: 0,
@@ -86,7 +86,7 @@ module su::vault {
     let vault = Vault {
       id: object::new(ctx),
       oracle_id,
-      high_fees,
+      liquidation_mode_fees,
       standard_fees,
       stability_collateral_ratio: 200 * PRECISION, // 200% CR
       liquidation_collateral_ratio: 180 * PRECISION // 170 CR %
@@ -198,8 +198,8 @@ module su::vault {
       && max_base_in_before_liquidation_mode >= base_in_value
     ) {
       let standard_fee_amount = compute_fee(max_base_in_before_stability_mode,self.standard_fees.f_coin_mint);
-      let high_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,self.high_fees.f_coin_mint);
-      coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + high_fee_amount, ctx)); 
+      let liquidation_mode_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,self.liquidation_mode_fees.f_coin_mint);
+      coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + liquidation_mode_fee_amount, ctx)); 
     } else 
       abort ECannotMintFCoinInLiquidationMode;
 
