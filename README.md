@@ -6,4 +6,5 @@
 - Rebalance xSui Pool
 - Vault (public API)
 - Oracle
+- LST
 - tests & more tests
