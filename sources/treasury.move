@@ -5,8 +5,8 @@ module su::treasury {
   use sui::object::{Self, UID};
   use sui::tx_context::TxContext;
   use sui::balance::{Self, Balance};
-  use sui::coin::{Self, TreasuryCap};
   use sui::versioned::{Self, Versioned};
+  use sui::coin::{Self, Coin, TreasuryCap};
 
   use su::f_sui::F_SUI;
   use su::x_sui::X_SUI;
@@ -27,6 +27,9 @@ module su::treasury {
   const EMultipleIsTooSmall: u64 = 1;
   const EMultipleIsTooLarge: u64 = 2;
   const ENewCollateralRatioIsTooSmall: u64 = 3;
+  const ESampleIntervalIsTooSmall: u64 = 4;
+  const EInvalidMintOption: u64 = 5;
+  const EBaseBalanceCapReached: u64 = 6;
 
   // === Constants ===
   
@@ -35,14 +38,20 @@ module su::treasury {
   const F_BETA: u64 = 100_000_000;
   // 1 Unit or 100%
   const PRECISION: u64 = 1_000_000_000;
+  const INITIAL_MINT_RATIO: u256 = 500_000_000;
+
+  const MINT_F_COIN: u8 = 0;
+  const MINT_X_COIN: u8 = 1;
+  const MINT_BOTH: u8 = 2;
 
   // === Structs ===
 
   struct StateV1 has store {
-    base_balance: Balance<I_SUI>,
+    ema: EMA,
     last_f_nav: u64,
     genesis_price: u64,
-    ema: EMA
+    base_balance_cap: u64,
+    base_balance: Balance<I_SUI>,
   }
 
   struct Treasury has key {
@@ -59,7 +68,8 @@ module su::treasury {
     f_treasury_cap: TreasuryCap<F_SUI>,
     x_treasury_cap: TreasuryCap<X_SUI>,
     c: &Clock,
-    genesis_price: u64, 
+    genesis_price: u64,
+    base_balance_cap: u64,
     ctx: &mut TxContext
   ) {
     treasury_cap_map::add(treasury_cap_map, f_treasury_cap);
@@ -70,7 +80,8 @@ module su::treasury {
       last_f_nav: PRECISION,
       genesis_price,
       // 30 minutes in seconds
-      ema: ema::new(c, 1800)
+      ema: ema::new(c, 1800),
+      base_balance_cap
     };
 
     let treasury = Treasury {
@@ -183,6 +194,185 @@ module su::treasury {
     ema::ema_value(state.ema, c)
   }
 
+  public(friend) fun ema_update_sample_interval(
+    self: &mut Treasury, 
+    treasury_cap_map: &TreasuryCapMap, 
+    c: &Clock,
+    base_price: u64, 
+    new_sample_interval: u64
+  ) {
+    // 1 minute
+    assert!(new_sample_interval >= 60000, ESampleIntervalIsTooSmall);
+
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
+
+    update_ema_leverage_ratio(state, c, su_state);
+
+    ema::set_sample_interval(&mut state.ema, new_sample_interval);
+  }
+
+  public(friend) fun update_base_balance_cap(self: &mut Treasury, new_base_balance_cap: u64) {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    state.base_balance_cap = new_base_balance_cap;
+  } 
+
+  public(friend) fun mint(
+    self: &mut Treasury,
+    treasury_cap_map: &mut TreasuryCapMap, 
+    base_in: Coin<I_SUI>,
+    c: &Clock,
+    base_price: u64, 
+    mint_option: u8,
+    ctx: &mut TxContext
+  ): (Coin<F_SUI>, Coin<X_SUI>) {
+    assert!(MINT_BOTH >= mint_option, EInvalidMintOption);
+
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
+
+    update_ema_leverage_ratio(state, c, su_state);
+
+    let base_in_value = coin::value(&base_in);
+
+    let base_supply = balance::value(&state.base_balance);
+
+    assert!(state.base_balance_cap >= balance::join(&mut state.base_balance, coin::into_balance(base_in)), EBaseBalanceCapReached);
+
+    let f_coin = coin::zero(ctx);
+    let x_coin = coin::zero(ctx);
+
+    if (mint_option == MINT_F_COIN) {
+      let treasury_f_cap = treasury_cap_map::borrow_mut<F_SUI>(treasury_cap_map);
+      coin::join(&mut f_coin, coin::mint(treasury_f_cap, su_state::mint_f_coin(su_state, base_in_value), ctx));
+    } else if (mint_option == MINT_X_COIN) {
+      let treasury_x_cap = treasury_cap_map::borrow_mut<X_SUI>(treasury_cap_map);
+      coin::join(&mut x_coin, coin::mint(treasury_x_cap, su_state::mint_x_coin(su_state, base_in_value), ctx));
+    } else {
+      if (base_supply == 0) {
+        let (base_in_value, base_nav, precision) = (
+          (base_in_value as u256),
+          (su_state::base_nav(su_state) as u256),
+          (PRECISION as u256)
+        );
+
+        let total_val = base_in_value * base_nav;
+        let f_amount = total_val * INITIAL_MINT_RATIO / precision / precision;
+        let x_amount = (total_val / precision) - f_amount;
+
+        let treasury_f_cap = treasury_cap_map::borrow_mut<F_SUI>(treasury_cap_map);
+        coin::join(&mut f_coin, coin::mint(treasury_f_cap, (f_amount as u64), ctx));
+
+        let treasury_x_cap = treasury_cap_map::borrow_mut<X_SUI>(treasury_cap_map);
+        coin::join(&mut x_coin, coin::mint(treasury_x_cap, (x_amount as u64), ctx));
+      } else {
+        let (f_amount, x_amount) = su_state::mint(su_state, base_in_value);
+        let treasury_f_cap = treasury_cap_map::borrow_mut<F_SUI>(treasury_cap_map);
+        coin::join(&mut f_coin, coin::mint(treasury_f_cap, su_state::mint_f_coin(su_state, f_amount), ctx));
+
+        let treasury_x_cap = treasury_cap_map::borrow_mut<X_SUI>(treasury_cap_map);
+        coin::join(&mut x_coin, coin::mint(treasury_x_cap, su_state::mint_x_coin(su_state, x_amount), ctx));
+      }
+    };
+
+    (f_coin, x_coin)
+  }
+
+  public(friend) fun redeem(
+    self: &mut Treasury,
+    treasury_cap_map: &mut TreasuryCapMap, 
+    f_coin_in: Coin<F_SUI>,
+    x_coin_in: Coin<X_SUI>,
+    c: &Clock,
+    base_price: u64,
+    ctx: &mut TxContext 
+  ): Coin<I_SUI> {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
+
+    update_ema_leverage_ratio(state, c, su_state);
+
+    let base_out = su_state::redeem(su_state, coin::value(&f_coin_in), coin::value(&x_coin_in));    
+    
+    let treasury_f_cap = treasury_cap_map::borrow_mut<F_SUI>(treasury_cap_map);
+    coin::burn(treasury_f_cap, f_coin_in);
+
+    let treasury_x_cap = treasury_cap_map::borrow_mut<X_SUI>(treasury_cap_map);
+    coin::burn(treasury_x_cap, x_coin_in);
+
+    coin::take(&mut state.base_balance, base_out, ctx)
+  }
+
+  public(friend) fun mint_x_coin_with_incentives(
+    self: &mut Treasury,
+    treasury_cap_map: &mut TreasuryCapMap, 
+    base_in: Coin<I_SUI>,
+    c: &Clock,
+    base_price: u64,
+    incentive_ratio: u64,
+    ctx: &mut TxContext     
+  ): Coin<X_SUI> {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
+
+    update_ema_leverage_ratio(state, c, su_state);
+
+    let base_in_value = coin::value(&base_in);
+
+    let (x_amount, f_delta_nav) = su_state::mint_x_coin_with_incentives(su_state, base_in_value, incentive_ratio);
+
+    assert!(state.base_balance_cap >= balance::join(&mut state.base_balance, coin::into_balance(base_in)), EBaseBalanceCapReached);
+
+    let (f_nav, f_delta_nav, precision) = (
+      (su_state::f_nav(su_state) as u256),
+      (f_delta_nav as u256),
+      (PRECISION as u256)
+    );
+
+    let new_f_nav = (f_nav - f_delta_nav) * precision / int::to_u256(int::add(int::from_u64(PRECISION), su_state::f_multiple(su_state)));
+    state.last_f_nav = (new_f_nav as u64);
+
+    let treasury_x_cap = treasury_cap_map::borrow_mut<X_SUI>(treasury_cap_map);
+
+    coin::mint(treasury_x_cap, x_amount, ctx)
+  }
+
+  public(friend) fun liquidate_with_incentive(
+    self: &mut Treasury,
+    treasury_cap_map: &mut TreasuryCapMap, 
+    f_coin_in: Coin<F_SUI>,
+    c: &Clock,
+    base_price: u64,
+    incentive_ratio: u64,
+    ctx: &mut TxContext 
+  ): Coin<I_SUI> {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    let su_state = compute_su_state(state, treasury_cap_map, base_price);
+
+    update_ema_leverage_ratio(state, c, su_state);    
+
+    let f_coin_in_value = coin::value(&f_coin_in);
+
+    let (base_out, f_delta_nav) = su_state::liquidate_with_incentive(su_state, f_coin_in_value, incentive_ratio);
+
+    let treasury_f_cap = treasury_cap_map::borrow_mut<F_SUI>(treasury_cap_map);
+
+    coin::burn(treasury_f_cap, f_coin_in);
+
+    let (f_nav, f_delta_nav, precision) = (
+      (su_state::f_nav(su_state) as u256),
+      (f_delta_nav as u256),
+      (PRECISION as u256)
+    );    
+
+    let new_f_nav = (f_nav - f_delta_nav) * precision / int::to_u256(int::add(int::from_u64(PRECISION), su_state::f_multiple(su_state)));
+    state.last_f_nav = (new_f_nav as u64);    
+
+    coin::take(&mut state.base_balance, base_out, ctx)
+  }
+
   // === Private Functions ===
 
   fun load_treasury_state_and_maybe_upgrade(self: &mut Treasury): &mut StateV1 {
@@ -195,6 +385,17 @@ module su::treasury {
     assert!(versioned::version(&self.inner) == STATE_VERSION_V1, EInvalidVersion);
   }
 
+  fun update_ema_leverage_ratio(state: &mut StateV1, c: &Clock, su_state: SuState) {
+    let genesis_price = int::from_u64(state.genesis_price);
+    let base_nav = int::from_u64(su_state::base_nav(su_state));
+    let precision = int::from_u64(PRECISION);
+
+    let earning_ratio = int::div_down(int::mul(int::sub(base_nav, genesis_price), precision), genesis_price);
+    let ratio = su_state::leverage_ratio(su_state, F_BETA, earning_ratio);
+
+    ema::upate(&mut state.ema, c, ratio);
+  }
+
   fun compute_su_state(state: &mut StateV1, treasury_cap_map: &TreasuryCapMap, base_price: u64): SuState {
     let base_supply = balance::value(&state.base_balance);
     let base_nav = base_price;
@@ -203,10 +404,10 @@ module su::treasury {
       su_state::new(base_supply, base_nav, int::zero(), 0, PRECISION, 0, PRECISION)
     } else {
       let f_supply = coin::total_supply(treasury_cap_map::borrow<F_SUI>(treasury_cap_map));
-      let f_multiple = compute_multiple(state, base_price); 
+      let f_multiple = compute_f_multiple(state, base_price); 
+      let f_nav = compute_f_nav(state, f_multiple);
 
       let x_supply = coin::total_supply(treasury_cap_map::borrow<X_SUI>(treasury_cap_map));
-      let f_nav = compute_f_nav(state, f_multiple);
 
       su_state::new(
         base_supply,
@@ -225,7 +426,7 @@ module su::treasury {
     su_state
   }
 
-  fun compute_multiple(state: &StateV1, base_price: u64): Int {
+  fun compute_f_multiple(state: &StateV1, base_price: u64): Int {
     let genesis_price = int::from_u64(state.genesis_price);
     let base_price = int::from_u64(base_price);
     let precision = int::from_u64(PRECISION);

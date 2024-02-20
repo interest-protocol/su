@@ -34,6 +34,10 @@ module su::treasury_cap_map {
 
   // === Public-View Functions ===
 
+  public fun add<CoinType: drop>(self: &mut TreasuryCapMap, v: TreasuryCap<CoinType>) {
+    object_bag::add(&mut self.inner, type_name::get<CoinType>(), v);
+  }  
+
   public fun borrow<CoinType: drop>(self: &TreasuryCapMap): &TreasuryCap<CoinType> {
     object_bag::borrow(&self.inner, type_name::get<CoinType>())
   }
@@ -55,10 +59,6 @@ module su::treasury_cap_map {
   }
 
   // === Public-Friend Functions ===
-
-  public(friend) fun add<CoinType: drop>(self: &mut TreasuryCapMap, v: TreasuryCap<CoinType>) {
-    object_bag::add(&mut self.inner, type_name::get<CoinType>(), v);
-  }
 
   public(friend) fun remove<CoinType: drop>(self: &mut TreasuryCapMap): TreasuryCap<CoinType> {
     object_bag::remove(&mut self.inner, type_name::get<CoinType>())

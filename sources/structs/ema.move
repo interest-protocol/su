@@ -30,9 +30,14 @@ module su::ema {
     }
   }
 
-  public fun set(self: &mut EMA, c: &Clock, last_value: u64) {
+  public fun upate(self: &mut EMA, c: &Clock, last_value: u64) {
     self.last_value = last_value;
     self.last_timestamp = timestamp_s(c);
+    self.last_ema_value = ema_value(*self, c);
+  }
+
+  public fun set_sample_interval(self: &mut EMA, sample_interval: u64) {
+    self.sample_interval = sample_interval;
   }
 
   public fun ema_value(self: EMA, c: &Clock): u64 {
@@ -40,7 +45,7 @@ module su::ema {
     if (current_s > self.last_timestamp) {
 
       let dt = current_s - self.last_timestamp;
-      let e = ((dt as u256) * PRECISION) / (self.last_timestamp as u256);
+      let e = ((dt as u256) * PRECISION) / (self.sample_interval as u256);
 
       if (e > 41000000000) {
         self.last_value
