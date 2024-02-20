@@ -4,6 +4,7 @@ module su::treasury {
   use sui::clock::Clock;
   use sui::object::{Self, UID};
   use sui::tx_context::TxContext;
+  use sui::transfer::share_object;
   use sui::balance::{Self, Balance};
   use sui::versioned::{Self, Versioned};
   use sui::coin::{Self, Coin, TreasuryCap};
@@ -12,7 +13,6 @@ module su::treasury {
   use su::x_sui::X_SUI;
   use su::i_sui::I_SUI;
   use su::ema::{Self, EMA};
-  use sui::transfer::share_object;
   use su::su_state::{Self, SuState};
   use su::treasury_cap_map::{Self, TreasuryCapMap};
 
@@ -39,6 +39,7 @@ module su::treasury {
   // 1 Unit or 100%
   const PRECISION: u64 = 1_000_000_000;
   const INITIAL_MINT_RATIO: u256 = 500_000_000;
+  const THIRTY_MINUTES_IN_SECONDS: u64 = 1800;
 
   const MINT_F_COIN: u8 = 0;
   const MINT_X_COIN: u8 = 1;
@@ -52,14 +53,13 @@ module su::treasury {
     genesis_price: u64,
     base_balance_cap: u64,
     base_balance: Balance<I_SUI>,
+    fees_balance: Balance<I_SUI>,
   }
 
   struct Treasury has key {
     id: UID,
     inner: Versioned
   }
-
-  // === Admin Functions ===
 
   // === Public-Friend Functions ===
 
@@ -76,12 +76,12 @@ module su::treasury {
     treasury_cap_map::add(treasury_cap_map, x_treasury_cap);
 
     let state_v1 = StateV1 {
-      base_balance: balance::zero(),
-      last_f_nav: PRECISION,
       genesis_price,
-      // 30 minutes in seconds
-      ema: ema::new(c, 1800),
-      base_balance_cap
+      base_balance_cap,
+      last_f_nav: PRECISION,
+      ema: ema::new(c, THIRTY_MINUTES_IN_SECONDS),
+      base_balance: balance::zero(),
+      fees_balance: balance::zero()
     };
 
     let treasury = Treasury {
@@ -90,7 +90,32 @@ module su::treasury {
     };
 
     share_object(treasury);
+  } 
+
+  public (friend) fun last_f_nav(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    state.last_f_nav
   }
+
+  public (friend) fun genesis_price(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    state.genesis_price
+  }  
+
+  public (friend) fun base_balance_cap(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    state.base_balance_cap
+  }  
+
+  public (friend) fun base_balance(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    balance::value(&state.base_balance)
+  }    
+
+  public (friend) fun fees_balance(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    balance::value(&state.fees_balance)
+  }      
 
   public(friend) fun collateral_ratio(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
@@ -100,11 +125,10 @@ module su::treasury {
     su_state::collateral_ratio(su_state)
   }
 
-  public(friend) fun su_state(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64): SuState {
+  public (friend) fun leverage_ratio(self: &mut Treasury, c: &Clock): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
-
-    compute_su_state(state, treasury_cap_map, base_price)
-  }
+    ema::ema_value(state.ema, c)
+  }   
 
   public(friend) fun max_mintable_f_coin(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64, new_collateral_ratio: u64): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
@@ -188,12 +212,6 @@ module su::treasury {
     su_state::max_liquitable(su_state, incentive_ratio, new_collateral_ratio)
   }  
 
-  public(friend) fun leverage_ratio(self: &mut Treasury, c: &Clock): u64 {
-    let state = load_treasury_state_and_maybe_upgrade(self);
-
-    ema::ema_value(state.ema, c)
-  }
-
   public(friend) fun ema_update_sample_interval(
     self: &mut Treasury, 
     treasury_cap_map: &TreasuryCapMap, 
@@ -204,7 +222,7 @@ module su::treasury {
     // 1 minute
     assert!(new_sample_interval >= 60000, ESampleIntervalIsTooSmall);
 
-    let state = load_treasury_state_and_maybe_upgrade(self);
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
 
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
@@ -214,10 +232,14 @@ module su::treasury {
   }
 
   public(friend) fun update_base_balance_cap(self: &mut Treasury, new_base_balance_cap: u64) {
-    let state = load_treasury_state_and_maybe_upgrade(self);
-
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
     state.base_balance_cap = new_base_balance_cap;
   } 
+
+  public(friend) fun add_fee(self: &mut Treasury, base_in: Coin<I_SUI>): u64 {
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
+    balance::join(&mut state.fees_balance, coin::into_balance(base_in))
+  }
 
   public(friend) fun mint(
     self: &mut Treasury,
@@ -230,7 +252,7 @@ module su::treasury {
   ): (Coin<F_SUI>, Coin<X_SUI>) {
     assert!(MINT_BOTH >= mint_option, EInvalidMintOption);
 
-    let state = load_treasury_state_and_maybe_upgrade(self);
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     update_ema_leverage_ratio(state, c, su_state);
@@ -289,7 +311,7 @@ module su::treasury {
     base_price: u64,
     ctx: &mut TxContext 
   ): Coin<I_SUI> {
-    let state = load_treasury_state_and_maybe_upgrade(self);
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     update_ema_leverage_ratio(state, c, su_state);
@@ -314,7 +336,7 @@ module su::treasury {
     incentive_ratio: u64,
     ctx: &mut TxContext     
   ): Coin<X_SUI> {
-    let state = load_treasury_state_and_maybe_upgrade(self);
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     update_ema_leverage_ratio(state, c, su_state);
@@ -332,7 +354,7 @@ module su::treasury {
     );
 
     let new_f_nav = (f_nav - f_delta_nav) * precision / int::to_u256(int::add(int::from_u64(PRECISION), su_state::f_multiple(su_state)));
-    state.last_f_nav = (new_f_nav as u64);
+    state.last_f_nav = (new_f_nav as u64);   
 
     let treasury_x_cap = treasury_cap_map::borrow_mut<X_SUI>(treasury_cap_map);
 
@@ -348,7 +370,7 @@ module su::treasury {
     incentive_ratio: u64,
     ctx: &mut TxContext 
   ): Coin<I_SUI> {
-    let state = load_treasury_state_and_maybe_upgrade(self);
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
     let su_state = compute_su_state(state, treasury_cap_map, base_price);
 
     update_ema_leverage_ratio(state, c, su_state);    
@@ -375,12 +397,18 @@ module su::treasury {
 
   // === Private Functions ===
 
-  fun load_treasury_state_and_maybe_upgrade(self: &mut Treasury): &mut StateV1 {
+  fun load_treasury_state_and_maybe_upgrade(self: &mut Treasury): &StateV1 {
+    maybe_upgrade_treasury_state_to_latest(self);
+    versioned::load_value(&self.inner)
+  }
+
+  fun load_mut_treasury_state_and_maybe_upgrade(self: &mut Treasury): &mut StateV1 {
     maybe_upgrade_treasury_state_to_latest(self);
     versioned::load_value_mut(&mut self.inner)
   }
 
-  fun maybe_upgrade_treasury_state_to_latest(self: &Treasury) {
+  #[allow(unused_mut_parameter)]
+  fun maybe_upgrade_treasury_state_to_latest(self: &mut Treasury) {
     // * IMPORTANT: When new versions are added, we need to explicitly upgrade here.
     assert!(versioned::version(&self.inner) == STATE_VERSION_V1, EInvalidVersion);
   }
@@ -396,7 +424,7 @@ module su::treasury {
     ema::upate(&mut state.ema, c, ratio);
   }
 
-  fun compute_su_state(state: &mut StateV1, treasury_cap_map: &TreasuryCapMap, base_price: u64): SuState {
+  fun compute_su_state(state: &StateV1, treasury_cap_map: &TreasuryCapMap, base_price: u64): SuState {
     let base_supply = balance::value(&state.base_balance);
     let base_nav = base_price;
 
@@ -419,9 +447,6 @@ module su::treasury {
         if (x_supply == 0) PRECISION else compute_x_nav(base_supply, base_nav, f_supply, f_nav, x_supply)
       )
     };
-
-    // cache the f_nav
-    state.last_f_nav = su_state::f_nav(su_state);
 
     su_state
   }
@@ -471,6 +496,4 @@ module su::treasury {
 
     (((base_supply * base_nav) - (f_supply * f_nav)) / x_supply as u64)
   }
-
-  // === Test Functions ===  
 }
