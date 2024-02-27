@@ -52,10 +52,12 @@ module su::treasury {
   struct StateV1 has store {
     ema: EMA,
     last_f_nav: u64,
+    bonus_rate: u64,
     genesis_price: u64,
     base_balance_cap: u64,
     base_balance: Balance<I_SUI>,
     fees_balance: Balance<I_SUI>,
+    reserve_balance: Balance<I_SUI>,
   }
 
   struct Treasury has key {
@@ -78,12 +80,14 @@ module su::treasury {
     treasury_cap_map::add(treasury_cap_map, x_treasury_cap);
 
     let state_v1 = StateV1 {
+      bonus_rate: 0,
       genesis_price,
       base_balance_cap,
       last_f_nav: PRECISION,
       ema: ema::new(c, THIRTY_MINUTES_IN_SECONDS),
       base_balance: balance::zero(),
-      fees_balance: balance::zero()
+      fees_balance: balance::zero(),
+      reserve_balance: balance::zero()
     };
 
     let treasury = Treasury {
@@ -118,6 +122,11 @@ module su::treasury {
     let state = load_treasury_state_and_maybe_upgrade(self);
     balance::value(&state.fees_balance)
   }      
+
+  public(friend) fun reserve_balance(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    balance::value(&state.reserve_balance)
+  }  
 
   public(friend) fun collateral_ratio(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
@@ -241,6 +250,21 @@ module su::treasury {
   public(friend) fun add_fee(self: &mut Treasury, base_in: Coin<I_SUI>): u64 {
     let state = load_mut_treasury_state_and_maybe_upgrade(self);
     balance::join(&mut state.fees_balance, coin::into_balance(base_in))
+  }
+
+  public(friend) fun remove_fee(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
+    coin::take(&mut state.fees_balance, amount, ctx)
+  }
+
+  public(friend) fun set_bonus_rate(self: &mut Treasury, bonus_rate: u64) {
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
+    state.bonus_rate = bonus_rate;
+  }
+
+  public(friend) fun add_reserve_balance(self: &mut Treasury, base_in: Coin<I_SUI>): u64 {
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
+    balance::join(&mut state.reserve_balance, coin::into_balance(base_in))
   }
 
   public(friend) fun mint(
@@ -395,6 +419,12 @@ module su::treasury {
     state.last_f_nav = (new_f_nav as u64);    
 
     coin::take(&mut state.base_balance, base_out, ctx)
+  }
+
+  public(friend) fun take_bonus(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
+    let bonus_amount = mul_div_down(amount, state.bonus_rate, PRECISION);
+    coin::take(&mut state.reserve_balance, bonus_amount, ctx)
   }
 
   // === Private Functions ===

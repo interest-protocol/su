@@ -5,6 +5,7 @@ module su::vault {
   use sui::tx_context::TxContext;
   use sui::transfer::share_object;
   use sui::object::{Self, UID, ID};
+  use sui::balance::{Self, Balance};
   use sui::coin::{Self, Coin, TreasuryCap};
 
   use su::f_sui::F_SUI;
@@ -40,7 +41,7 @@ module su::vault {
     id: UID,
     oracle_id: ID,
     standard_fees: Fees,
-    liquidation_mode_fees: Fees,
+    stability_fees: Fees,
     stability_collateral_ratio: u64,
     liquidation_collateral_ratio: u64
   }
@@ -76,8 +77,8 @@ module su::vault {
       x_coin_redeem: 10000000
     };
 
-    let liquidation_mode_fees = Fees {
-      f_coin_mint: PRECISION, // 100% (it will be disabled)
+    let stability_fees = Fees {
+      f_coin_mint: PRECISION / 10, // 10%
       f_coin_redeem: 0,
       x_coin_mint: 0,
       x_coin_redeem: PRECISION / 10 // 10%
@@ -86,10 +87,10 @@ module su::vault {
     let vault = Vault {
       id: object::new(ctx),
       oracle_id,
-      liquidation_mode_fees,
       standard_fees,
+      stability_fees,
       stability_collateral_ratio: 200 * PRECISION, // 200% CR
-      liquidation_collateral_ratio: 180 * PRECISION // 170 CR %
+      liquidation_collateral_ratio: 180 * PRECISION, // 170 CR %
     };
 
     share_object(vault);
@@ -198,7 +199,7 @@ module su::vault {
       && max_base_in_before_liquidation_mode >= base_in_value
     ) {
       let standard_fee_amount = compute_fee(max_base_in_before_stability_mode,self.standard_fees.f_coin_mint);
-      let liquidation_mode_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,self.liquidation_mode_fees.f_coin_mint);
+      let liquidation_mode_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,self.stability_fees.f_coin_mint);
       coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + liquidation_mode_fee_amount, ctx)); 
     } else 
       abort ECannotMintFCoinInLiquidationMode;
