@@ -17,6 +17,10 @@ module su::vault {
   use suitears::math64::mul_div_up;
   use suitears::oracle::{Self, Price};
 
+  // === Friends ===
+
+  friend su::admin;
+
   // === Errors ===
 
   const EInvalidOracle: u64 = 0;
@@ -25,6 +29,8 @@ module su::vault {
   const EInvalidFCoinAmountOut: u64 = 3;
   const EInvalidXCoinAmountOut: u64 = 4;
   const ECannotMintFCoinInLiquidationMode: u64 = 5;
+  const EStabilityCollateralRatioIsTooLow: u64 = 6;
+  const ERebalanceCollateralRatioIsTooHigh: u64 = 6;
 
   // === Constants ===
 
@@ -43,7 +49,7 @@ module su::vault {
     x_fees: Fees,
     f_fees: Fees,
     stability_collateral_ratio: u64,
-    liquidation_collateral_ratio: u64
+    rebalance_collateral_ratio: u64
   }
 
   struct Fees has store, copy, drop {
@@ -90,7 +96,7 @@ module su::vault {
       x_fees,
       oracle_id,
       stability_collateral_ratio: 200 * PRECISION, // 200% CR
-      liquidation_collateral_ratio: 180 * PRECISION, // 170 CR %
+      rebalance_collateral_ratio: 180 * PRECISION, // 180 CR %
     };
 
     share_object(vault);
@@ -143,20 +149,20 @@ module su::vault {
       self.stability_collateral_ratio
     );
 
-    let (max_base_in_before_liquidation_mode, _) = treasury::max_mintable_f_coin(
+    let (max_base_in_before_rebalance_mode, _) = treasury::max_mintable_f_coin(
       treasury, 
       treasury_cap_map, 
       base_price, 
-      self.liquidation_collateral_ratio
+      self.rebalance_collateral_ratio
     );
 
-    assert!(max_base_in_before_liquidation_mode != 0 || max_base_in_before_liquidation_mode > base_in_value, ECannotMintFCoinInLiquidationMode);
+    assert!(max_base_in_before_rebalance_mode != 0 || max_base_in_before_rebalance_mode > base_in_value, ECannotMintFCoinInLiquidationMode);
 
     let fee_in = compute_mint_fees(
       self.f_fees, 
       &mut base_in, 
       max_base_in_before_stability_mode, 
-      max_base_in_before_liquidation_mode, 
+      max_base_in_before_rebalance_mode, 
       ctx
     );
 
@@ -193,18 +199,18 @@ module su::vault {
       self.stability_collateral_ratio
     );
 
-    let (max_base_in_before_liquidation_mode, _) = treasury::max_mintable_x_coin(
+    let (max_base_in_before_rebalance_mode, _) = treasury::max_mintable_x_coin(
       treasury, 
       treasury_cap_map, 
       base_price, 
-      self.liquidation_collateral_ratio
+      self.rebalance_collateral_ratio
     );
 
     let fee_in = compute_mint_fees(
       self.x_fees, 
       &mut base_in, 
       max_base_in_before_stability_mode, 
-      max_base_in_before_liquidation_mode, 
+      max_base_in_before_rebalance_mode, 
       ctx
     );
 
@@ -214,8 +220,8 @@ module su::vault {
 
     coin::destroy_zero(f_coin);
 
-    let bonus_coin = if (base_in_value >= max_base_in_before_liquidation_mode) {
-      treasury::take_bonus(treasury, base_in_value - max_base_in_before_liquidation_mode, ctx)
+    let bonus_coin = if (base_in_value >= max_base_in_before_rebalance_mode) {
+      treasury::take_bonus(treasury, base_in_value - max_base_in_before_rebalance_mode, ctx)
     } else coin::zero(ctx);
 
     assert!(coin::value(&x_coin) >= min_x_coin_amount, EInvalidXCoinAmountOut);
@@ -225,9 +231,49 @@ module su::vault {
 
   // === Public-View Functions ===
 
-  // === Admin Functions ===
-
   // === Public-Friend Functions ===
+
+  public(friend) fun set_oracle_id(self: &mut Vault, oracle_id: ID) {
+    self.oracle_id = oracle_id;
+  }
+
+  public(friend) fun set_fees(
+    self: &mut Vault,
+    is_x: bool,     
+    standard_mint: u64,
+    standard_redeem: u64,
+    stability_mint: u64,
+    stability_redeem: u64
+  ) {
+    let fees = Fees {
+      standard_mint,
+      standard_redeem,
+      stability_mint,
+      stability_redeem
+    };   
+
+    if (is_x) {
+      self.x_fees = fees;
+    } else {
+      self.f_fees = fees;
+    };
+  }
+
+  public(friend) fun set_stability_collateral_ratio(
+    self: &mut Vault,
+    stability_collateral_ratio: u64
+  ) {
+    assert!(stability_collateral_ratio > self.rebalance_collateral_ratio, EStabilityCollateralRatioIsTooLow);
+    self.stability_collateral_ratio = stability_collateral_ratio;
+  }  
+
+  public(friend) fun set_rebalance_collateral_ratio(
+    self: &mut Vault,
+    rebalance_collateral_ratio: u64
+  ) {
+    assert!(self.stability_collateral_ratio > rebalance_collateral_ratio, ERebalanceCollateralRatioIsTooHigh);
+    self.rebalance_collateral_ratio = rebalance_collateral_ratio;
+  }    
 
   // === Private Functions ===
 
