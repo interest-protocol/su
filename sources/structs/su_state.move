@@ -187,32 +187,6 @@ module su::su_state {
     )  
   }
 
-  public fun max_liquitable(
-    self: SuState,
-    incentive_ratio: u64,
-    new_collateral_ratio: u64        
-  ): (u64, u64) {
-    let (
-      incentive_ratio,
-      new_collateral_ratio,
-    ) = (
-      (incentive_ratio as u256),
-      (new_collateral_ratio as u256),
-    );
-
-    let f_value = new_collateral_ratio * self.f_supply * self.f_nav;
-
-    if (self.base_value >= f_value) return (0, 0);
-
-    let new_collateral_ratio = new_collateral_ratio - PRECISION;
-    let delta = f_value - self.base_value;
-
-    (
-      (delta / (self.base_nav * new_collateral_ratio) as u64), 
-      (((delta / new_collateral_ratio) * PRECISION ) / ((PRECISION + incentive_ratio) * self.f_nav)  as u64)
-    )    
-  }
-
   public fun mint(self: SuState, base_in: u64): (u64, u64) {
     let base_in = (base_in as u256);
     (
@@ -232,20 +206,6 @@ module su::su_state {
     (x_coin_out / (self.base_supply * self.base_nav - (self.f_supply * self.f_nav)) as u64) 
   }
 
-  public fun mint_x_coin_with_incentives(self: SuState, base_in: u64, incentive_ratio: u64): (u64, u64) {
-    let (base_in, incentive_ratio) = ((base_in as u256), (incentive_ratio as u256));
-
-    let delta_value = base_in * self.base_nav;
-
-    let x_coin_out = delta_value * (PRECISION + incentive_ratio) / PRECISION;
-    let f_delta_nav = delta_value * incentive_ratio / PRECISION;
-
-    (
-      (x_coin_out / self.x_nav as u64),
-      (f_delta_nav / self.f_supply as u64)
-    )
-  }
-
   public fun redeem(
     self: SuState,
     f_coin_in: u64,
@@ -260,24 +220,6 @@ module su::su_state {
     let base_out = f_coin_in * self.f_nav;
     base_out = base_out + (x_coin_in * x_value / self.x_supply);
     (base_out / self.base_nav as u64)
-  }
-
-  public fun liquidate_with_incentive(
-    self: SuState,
-    f_coin_in: u64,
-    incentive_ratio: u64
-  ): (u64, u64) {
-    let (f_coin_in, incentive_ratio) = ((f_coin_in as u256), (incentive_ratio as u256));      
-
-    let f_delta_value = f_coin_in * self.f_nav;
-
-    let base_out = f_delta_value * (PRECISION + incentive_ratio) / PRECISION;
-    let f_delta_nav = f_delta_value * incentive_ratio / PRECISION;
-    
-    (
-      (base_out / self.base_nav as u64),
-      (f_delta_nav / (self.f_supply - f_coin_in) as u64)
-    )
   }
 
   public fun leverage_ratio(

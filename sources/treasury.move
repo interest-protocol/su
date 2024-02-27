@@ -17,10 +17,11 @@ module su::treasury {
   use su::treasury_cap_map::{Self, TreasuryCapMap};
 
   use suitears::int::{Self, Int};
-  use suitears::math64::mul_div_down;
+  use suitears::math64::{min, mul_div_down};
 
   // === Friends ===
   friend su::vault;
+  friend su::admin;
 
   // === Errors ===
 
@@ -31,6 +32,7 @@ module su::treasury {
   const ESampleIntervalIsTooSmall: u64 = 4;
   const EInvalidMintOption: u64 = 5;
   const EBaseBalanceCapReached: u64 = 6;
+  const EFeesMustBeSmallerThanPrecision: u64 = 7;
 
   // === Constants ===
   
@@ -49,15 +51,22 @@ module su::treasury {
 
   // === Structs ===
 
+  struct Fees has store {
+    reserve: u64,
+    rebalance: u64,
+  }
+
   struct StateV1 has store {
     ema: EMA,
     last_f_nav: u64,
     bonus_rate: u64,
     genesis_price: u64,
     base_balance_cap: u64,
+    fees: Fees,
     base_balance: Balance<I_SUI>,
-    fees_balance: Balance<I_SUI>,
+    admin_balance: Balance<I_SUI>,
     reserve_balance: Balance<I_SUI>,
+    rebalance_balance: Balance<I_SUI>,
   }
 
   struct Treasury has key {
@@ -79,15 +88,22 @@ module su::treasury {
     treasury_cap_map::add(treasury_cap_map, f_treasury_cap);
     treasury_cap_map::add(treasury_cap_map, x_treasury_cap);
 
+    let fees = Fees {
+      reserve: 450000000,
+      rebalance: 450000000
+    };
+
     let state_v1 = StateV1 {
+      fees,
       bonus_rate: 0,
       genesis_price,
       base_balance_cap,
       last_f_nav: PRECISION,
-      ema: ema::new(c, THIRTY_MINUTES_IN_SECONDS),
       base_balance: balance::zero(),
-      fees_balance: balance::zero(),
-      reserve_balance: balance::zero()
+      admin_balance: balance::zero(),
+      reserve_balance: balance::zero(),
+      rebalance_balance: balance::zero(),
+      ema: ema::new(c, THIRTY_MINUTES_IN_SECONDS),
     };
 
     let treasury = Treasury {
@@ -118,15 +134,20 @@ module su::treasury {
     balance::value(&state.base_balance)
   }    
 
-  public (friend) fun fees_balance(self: &mut Treasury): u64 {
-    let state = load_treasury_state_and_maybe_upgrade(self);
-    balance::value(&state.fees_balance)
-  }      
-
-  public(friend) fun reserve_balance(self: &mut Treasury): u64 {
+  public (friend) fun reserve_balance(self: &mut Treasury): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
     balance::value(&state.reserve_balance)
-  }  
+  }   
+
+  public (friend) fun rebalance_balance(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    balance::value(&state.rebalance_balance)
+  }    
+
+  public (friend) fun admin_balance(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    balance::value(&state.admin_balance)
+  }      
 
   public(friend) fun collateral_ratio(self: &mut Treasury, treasury_cap_map: &TreasuryCapMap, base_price: u64): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
@@ -207,22 +228,6 @@ module su::treasury {
     su_state::max_redeemable_x_coin(su_state, new_collateral_ratio)
   }  
 
-  public(friend) fun max_liquitable(
-    self: &mut Treasury, 
-    treasury_cap_map: &TreasuryCapMap, 
-    base_price: u64, 
-    incentive_ratio: u64,
-    new_collateral_ratio: u64      
-  ): (u64, u64) {
-    assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
-
-    let state = load_treasury_state_and_maybe_upgrade(self);
-
-    let su_state = compute_su_state(state, treasury_cap_map, base_price);
-
-    su_state::max_liquitable(su_state, incentive_ratio, new_collateral_ratio)
-  }  
-
   public(friend) fun ema_update_sample_interval(
     self: &mut Treasury, 
     treasury_cap_map: &TreasuryCapMap, 
@@ -247,14 +252,35 @@ module su::treasury {
     state.base_balance_cap = new_base_balance_cap;
   } 
 
-  public(friend) fun add_fee(self: &mut Treasury, base_in: Coin<I_SUI>): u64 {
+  public(friend) fun add_fee(self: &mut Treasury, base_in: Coin<I_SUI>) {
     let state = load_mut_treasury_state_and_maybe_upgrade(self);
-    balance::join(&mut state.fees_balance, coin::into_balance(base_in))
+
+    let balance_in = coin::into_balance(base_in);
+    
+    deposit_fee(&mut state.reserve_balance, &mut balance_in, state.fees.reserve);
+    deposit_fee(&mut state.rebalance_balance, &mut balance_in, state.fees.reserve);
+
+    let remaining_value = balance::value(&balance_in);
+    if (remaining_value != 0) {
+      balance::join(&mut state.admin_balance, balance_in);
+    } else {
+      balance::destroy_zero(balance_in);
+    };
   }
 
-  public(friend) fun remove_fee(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
+  public(friend) fun remove_rebalance_fee(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
     let state = load_mut_treasury_state_and_maybe_upgrade(self);
-    coin::take(&mut state.fees_balance, amount, ctx)
+    coin::take(&mut state.rebalance_balance, amount, ctx)
+  }
+
+  public(friend) fun remove_reserve_fee(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
+    coin::take(&mut state.reserve_balance, amount, ctx)
+  }
+
+  public(friend) fun remove_admin_fee(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
+    let state = load_mut_treasury_state_and_maybe_upgrade(self);
+    coin::take(&mut state.admin_balance, amount, ctx)
   }
 
   public(friend) fun set_bonus_rate(self: &mut Treasury, bonus_rate: u64) {
@@ -262,10 +288,13 @@ module su::treasury {
     state.bonus_rate = bonus_rate;
   }
 
-  public(friend) fun add_reserve_balance(self: &mut Treasury, base_in: Coin<I_SUI>): u64 {
+  public(friend) fun set_fees(self: &mut Treasury, rebalance_fee: u64, reserve_fee: u64) {
+    assert!(PRECISION >= rebalance_fee + reserve_fee, EFeesMustBeSmallerThanPrecision);
     let state = load_mut_treasury_state_and_maybe_upgrade(self);
-    balance::join(&mut state.reserve_balance, coin::into_balance(base_in))
+    state.fees.rebalance = rebalance_fee;
+    state.fees.reserve = reserve_fee;
   }
+
 
   public(friend) fun mint(
     self: &mut Treasury,
@@ -353,78 +382,11 @@ module su::treasury {
     coin::take(&mut state.base_balance, base_out, ctx)
   }
 
-  public(friend) fun mint_x_coin_with_incentives(
-    self: &mut Treasury,
-    treasury_cap_map: &mut TreasuryCapMap, 
-    base_in: Coin<I_SUI>,
-    c: &Clock,
-    base_price: u64,
-    incentive_ratio: u64,
-    ctx: &mut TxContext     
-  ): Coin<X_SUI> {
-    let state = load_mut_treasury_state_and_maybe_upgrade(self);
-    let su_state = compute_su_state(state, treasury_cap_map, base_price);
-
-    update_ema_leverage_ratio(state, c, su_state);
-
-    let base_in_value = coin::value(&base_in);
-
-    let (x_amount, f_delta_nav) = su_state::mint_x_coin_with_incentives(su_state, base_in_value, incentive_ratio);
-
-    assert!(state.base_balance_cap >= balance::join(&mut state.base_balance, coin::into_balance(base_in)), EBaseBalanceCapReached);
-
-    let (f_nav, f_delta_nav, precision) = (
-      (su_state::f_nav(su_state) as u256),
-      (f_delta_nav as u256),
-      (PRECISION as u256)
-    );
-
-    let new_f_nav = (f_nav - f_delta_nav) * precision / int::to_u256(int::add(int::from_u64(PRECISION), su_state::f_multiple(su_state)));
-    state.last_f_nav = (new_f_nav as u64);   
-
-    let treasury_x_cap = treasury_cap_map::borrow_mut<X_SUI>(treasury_cap_map);
-
-    coin::mint(treasury_x_cap, x_amount, ctx)
-  }
-
-  public(friend) fun liquidate_with_incentive(
-    self: &mut Treasury,
-    treasury_cap_map: &mut TreasuryCapMap, 
-    f_coin_in: Coin<F_SUI>,
-    c: &Clock,
-    base_price: u64,
-    incentive_ratio: u64,
-    ctx: &mut TxContext 
-  ): Coin<I_SUI> {
-    let state = load_mut_treasury_state_and_maybe_upgrade(self);
-    let su_state = compute_su_state(state, treasury_cap_map, base_price);
-
-    update_ema_leverage_ratio(state, c, su_state);    
-
-    let f_coin_in_value = coin::value(&f_coin_in);
-
-    let (base_out, f_delta_nav) = su_state::liquidate_with_incentive(su_state, f_coin_in_value, incentive_ratio);
-
-    let treasury_f_cap = treasury_cap_map::borrow_mut<F_SUI>(treasury_cap_map);
-
-    coin::burn(treasury_f_cap, f_coin_in);
-
-    let (f_nav, f_delta_nav, precision) = (
-      (su_state::f_nav(su_state) as u256),
-      (f_delta_nav as u256),
-      (PRECISION as u256)
-    );    
-
-    let new_f_nav = (f_nav - f_delta_nav) * precision / int::to_u256(int::add(int::from_u64(PRECISION), su_state::f_multiple(su_state)));
-    state.last_f_nav = (new_f_nav as u64);    
-
-    coin::take(&mut state.base_balance, base_out, ctx)
-  }
-
   public(friend) fun take_bonus(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
     let state = load_mut_treasury_state_and_maybe_upgrade(self);
     let bonus_amount = mul_div_down(amount, state.bonus_rate, PRECISION);
-    coin::take(&mut state.reserve_balance, bonus_amount, ctx)
+    let reserve_balance_amount = balance::value(&state.reserve_balance);
+    coin::take(&mut state.reserve_balance, min(bonus_amount, reserve_balance_amount), ctx)
   }
 
   // === Private Functions ===
@@ -527,5 +489,15 @@ module su::treasury {
     );
 
     (((base_supply * base_nav) - (f_supply * f_nav)) / x_supply as u64)
+  }
+
+  fun deposit_fee(bal: &mut Balance<I_SUI>, balance_in: &mut Balance<I_SUI>, fee: u64) {
+    let value = balance::value(balance_in);
+    balance::join(bal, 
+      balance::split(
+        balance_in, 
+        mul_div_down(value, fee, PRECISION)
+      )
+    );
   }
 }

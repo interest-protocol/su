@@ -40,17 +40,17 @@ module su::vault {
   struct Vault has key {
     id: UID,
     oracle_id: ID,
-    standard_fees: Fees,
-    stability_fees: Fees,
+    x_fees: Fees,
+    f_fees: Fees,
     stability_collateral_ratio: u64,
     liquidation_collateral_ratio: u64
   }
 
   struct Fees has store, copy, drop {
-    f_coin_mint: u64,
-    f_coin_redeem: u64,
-    x_coin_mint: u64,
-    x_coin_redeem: u64
+    standard_mint: u64,
+    standard_redeem: u64,
+    stability_mint: u64,
+    stability_redeem: u64
   }
 
   // === Public-Mutative Functions ===
@@ -70,25 +70,25 @@ module su::vault {
 
     treasury::share_genesis_state(treasury_cap_map, f_treasury_cap, x_treasury_cap, c, price, base_balance_cap, ctx);
 
-    let standard_fees = Fees {
-      f_coin_mint: 2500000, // 0.25%
-      f_coin_redeem: 2500000, // 0.25%  
-      x_coin_mint: 10000000,
-      x_coin_redeem: 10000000
+    let f_fees = Fees {
+      standard_mint: 2500000,
+      standard_redeem: 2500000,
+      stability_mint: PRECISION / 10,
+      stability_redeem: 0
     };
 
-    let stability_fees = Fees {
-      f_coin_mint: PRECISION / 10, // 10%
-      f_coin_redeem: 0,
-      x_coin_mint: 0,
-      x_coin_redeem: PRECISION / 10 // 10%
+    let x_fees = Fees {
+      standard_mint: 10000000,
+      standard_redeem: 10000000,
+      stability_mint: 0,
+      stability_redeem: PRECISION / 10
     };
 
     let vault = Vault {
       id: object::new(ctx),
+      f_fees,
+      x_fees,
       oracle_id,
-      standard_fees,
-      stability_fees,
       stability_collateral_ratio: 200 * PRECISION, // 200% CR
       liquidation_collateral_ratio: 180 * PRECISION, // 170 CR %
     };
@@ -150,9 +150,15 @@ module su::vault {
       self.liquidation_collateral_ratio
     );
 
-    assert!(max_base_in_before_liquidation_mode != 0 || max_base_in_before_liquidation_mode >= base_in_value, ECannotMintFCoinInLiquidationMode);
+    assert!(max_base_in_before_liquidation_mode != 0 || max_base_in_before_liquidation_mode > base_in_value, ECannotMintFCoinInLiquidationMode);
 
-    let fee_in = compute_mint_f_coin_fee(self, &mut base_in, max_base_in_before_stability_mode, max_base_in_before_liquidation_mode, ctx);
+    let fee_in = compute_mint_fees(
+      self.f_fees, 
+      &mut base_in, 
+      max_base_in_before_stability_mode, 
+      max_base_in_before_liquidation_mode, 
+      ctx
+    );
 
     treasury::add_fee(treasury, fee_in);
 
@@ -163,6 +169,58 @@ module su::vault {
     assert!(coin::value(&f_coin) >= min_f_coin_amount, EInvalidFCoinAmountOut);
 
     f_coin
+  }
+
+  public fun mint_x_coin(
+    self: &Vault,
+    treasury: &mut Treasury,
+    treasury_cap_map: &mut TreasuryCapMap,
+    c: &Clock,
+    base_in: Coin<I_SUI>,
+    oracle_price: Price,
+    min_x_coin_amount: u64,
+    ctx: &mut TxContext     
+  ): (Coin<X_SUI>, Coin<I_SUI>) {
+    let base_in_value = coin::value(&base_in);
+    assert!(base_in_value != 0, EZeroBaseInIsNotAllowed);
+
+    let base_price = destroy_price(self, oracle_price);    
+
+    let (max_base_in_before_stability_mode, _) = treasury::max_mintable_x_coin(
+      treasury, 
+      treasury_cap_map, 
+      base_price, 
+      self.stability_collateral_ratio
+    );
+
+    let (max_base_in_before_liquidation_mode, _) = treasury::max_mintable_x_coin(
+      treasury, 
+      treasury_cap_map, 
+      base_price, 
+      self.liquidation_collateral_ratio
+    );
+
+    let fee_in = compute_mint_fees(
+      self.x_fees, 
+      &mut base_in, 
+      max_base_in_before_stability_mode, 
+      max_base_in_before_liquidation_mode, 
+      ctx
+    );
+
+    treasury::add_fee(treasury, fee_in);
+
+    let (f_coin, x_coin) = treasury::mint(treasury, treasury_cap_map, base_in, c, base_price, MINT_X_COIN, ctx);
+
+    coin::destroy_zero(f_coin);
+
+    let bonus_coin = if (base_in_value >= max_base_in_before_liquidation_mode) {
+      treasury::take_bonus(treasury, base_in_value - max_base_in_before_liquidation_mode, ctx)
+    } else coin::zero(ctx);
+
+    assert!(coin::value(&x_coin) >= min_x_coin_amount, EInvalidXCoinAmountOut);
+
+    (x_coin, bonus_coin)
   }
 
   // === Public-View Functions ===
@@ -180,8 +238,8 @@ module su::vault {
     (scaled_price / (PRECISION as u256) as u64)
   }
 
-  fun compute_mint_f_coin_fee(
-    self: &Vault,
+  fun compute_mint_fees(
+    fees: Fees,
     base_in: &mut Coin<I_SUI>, 
     max_base_in_before_stability_mode: u64, 
     max_base_in_before_liquidation_mode: u64,
@@ -192,17 +250,13 @@ module su::vault {
 
     // charge normal fees
     if (max_base_in_before_stability_mode >= base_in_value) {
-      let fee_amount = compute_fee(base_in_value,self.standard_fees.f_coin_mint);
+      let fee_amount = compute_fee(base_in_value,fees.standard_mint);
       coin::join(&mut fees_in, coin::split(base_in, fee_amount, ctx));
-    } else if (
-      base_in_value > max_base_in_before_stability_mode 
-      && max_base_in_before_liquidation_mode >= base_in_value
-    ) {
-      let standard_fee_amount = compute_fee(max_base_in_before_stability_mode,self.standard_fees.f_coin_mint);
-      let liquidation_mode_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,self.stability_fees.f_coin_mint);
+    } else {
+      let standard_fee_amount = compute_fee(max_base_in_before_stability_mode,fees.standard_mint);
+      let liquidation_mode_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,fees.stability_mint);
       coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + liquidation_mode_fee_amount, ctx)); 
-    } else 
-      abort ECannotMintFCoinInLiquidationMode;
+    };
 
     fees_in
   }
