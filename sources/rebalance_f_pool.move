@@ -18,6 +18,7 @@ module su::rebalance_f_pool {
   // === Structs ===
 
   struct RebalancePool has key {
+    id: UID,
     epoch: Epoch,
     unlock_duration: u64,
     base_reward: TypeName,
@@ -54,10 +55,6 @@ module su::rebalance_f_pool {
   }
 
   // === Public-Mutative Functions ===
-
-  fun init() {
-
-  }
 
   // === Public-View Functions ===
 

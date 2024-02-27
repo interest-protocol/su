@@ -20,6 +20,7 @@ module su::treasury {
   use suitears::math64::{min, mul_div_down};
 
   // === Friends ===
+  
   friend su::vault;
   friend su::admin;
 
@@ -294,7 +295,6 @@ module su::treasury {
     state.fees.rebalance = rebalance_fee;
     state.fees.reserve = reserve_fee;
   }
-
 
   public(friend) fun mint(
     self: &mut Treasury,

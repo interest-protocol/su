@@ -5,6 +5,10 @@ module su::su_state {
   use suitears::int::{Self, Int};
   use suitears::math256::mul_div_down;
 
+  // === Friends ===
+
+  friend su::treasury;
+
   // === Structs ===
 
   struct SuState has copy, store, drop {
@@ -26,7 +30,7 @@ module su::su_state {
 
   // === Public-Mutative Functions ===
 
-  public fun new(
+  public(friend)(friend) fun new(
     base_supply: u64,
     base_nav: u64,
     f_multiple: Int,
@@ -49,43 +53,43 @@ module su::su_state {
 
   // === Public-View Functions ===
 
-  public fun base_supply(self: SuState): u64 {
+  public(friend) fun base_supply(self: SuState): u64 {
     (self.base_supply as u64)
   }
 
-  public fun base_nav(self: SuState): u64 {
+  public(friend) fun base_nav(self: SuState): u64 {
     (self.base_nav as u64)
   }  
 
-  public fun base_value(self: SuState): u64 {
+  public(friend) fun base_value(self: SuState): u64 {
     (self.base_value as u64)
   }   
 
-  public fun f_multiple(self: SuState): Int {
+  public(friend) fun f_multiple(self: SuState): Int {
     self.f_multiple
   }
 
-  public fun f_supply(self: SuState): u64 {
+  public(friend) fun f_supply(self: SuState): u64 {
     (self.f_supply as u64)
   }        
 
-  public fun f_nav(self: SuState): u64 {
+  public(friend) fun f_nav(self: SuState): u64 {
     (self.f_nav as u64)
   }    
 
-  public fun x_supply(self: SuState): u64 {
+  public(friend) fun x_supply(self: SuState): u64 {
     (self.x_supply as u64)
   }    
 
-  public fun x_nav(self: SuState): u64 {
+  public(friend) fun x_nav(self: SuState): u64 {
     (self.x_nav as u64)
   } 
 
-  public fun collateral_ratio(self: SuState): u64 {
+  public(friend) fun collateral_ratio(self: SuState): u64 {
     ((self.base_supply * self.base_nav * PRECISION) / (self.f_supply * self.f_nav)  as u64)
   }
 
-  public fun max_mintable_f_coin(
+  public(friend) fun max_mintable_f_coin(
     self: SuState,
     new_collateral_ratio: u64  
   ): (u64, u64) {
@@ -105,7 +109,7 @@ module su::su_state {
     )
   }
 
-  public fun max_mintable_x_coin(
+  public(friend) fun max_mintable_x_coin(
     self: SuState,
     new_collateral_ratio: u64       
   ): (u64, u64) {
@@ -123,7 +127,7 @@ module su::su_state {
     )
   }
 
-  public fun max_mintable_x_coin_with_incentives(
+  public(friend) fun max_mintable_x_coin_with_incentives(
     self: SuState,
     incentive_ratio: u64,
     new_collateral_ratio: u64         
@@ -150,7 +154,7 @@ module su::su_state {
     )    
   }
 
-  public fun max_redeemable_f_coin(
+  public(friend) fun max_redeemable_f_coin(
     self: SuState,  
     new_collateral_ratio: u64   
   ): (u64, u64) {
@@ -169,7 +173,7 @@ module su::su_state {
     )
   }
 
-  public fun max_redeemable_x_coin(
+  public(friend) fun max_redeemable_x_coin(
     self: SuState,
     new_collateral_ratio: u64      
   ): (u64, u64) {
@@ -187,7 +191,7 @@ module su::su_state {
     )  
   }
 
-  public fun mint(self: SuState, base_in: u64): (u64, u64) {
+  public(friend) fun mint(self: SuState, base_in: u64): (u64, u64) {
     let base_in = (base_in as u256);
     (
       (mul_div_down(self.f_supply, base_in, self.base_supply) as u64),
@@ -195,18 +199,18 @@ module su::su_state {
     )
   }
 
-  public fun mint_f_coin(self: SuState, base_in: u64): u64 {
+  public(friend) fun mint_f_coin(self: SuState, base_in: u64): u64 {
     (mul_div_down((base_in as u256), self.base_nav, self.f_nav) as u64)
   }
 
-  public fun mint_x_coin(self: SuState, base_in: u64): u64 {
+  public(friend) fun mint_x_coin(self: SuState, base_in: u64): u64 {
     let base_in = (base_in as u256);
 
     let x_coin_out = base_in * self.base_nav * self.x_supply;
     (x_coin_out / (self.base_supply * self.base_nav - (self.f_supply * self.f_nav)) as u64) 
   }
 
-  public fun redeem(
+  public(friend) fun redeem(
     self: SuState,
     f_coin_in: u64,
     x_coin_in: u64
@@ -222,7 +226,7 @@ module su::su_state {
     (base_out / self.base_nav as u64)
   }
 
-  public fun leverage_ratio(
+  public(friend) fun leverage_ratio(
     self: SuState,
     beta: u64,
     earning_ratio: Int

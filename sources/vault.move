@@ -158,11 +158,10 @@ module su::vault {
 
     assert!(max_base_in_before_rebalance_mode != 0 || max_base_in_before_rebalance_mode > base_in_value, ECannotMintFCoinInLiquidationMode);
 
-    let fee_in = compute_mint_fees(
+    let fee_in = mint_fee(
       self.f_fees, 
       &mut base_in, 
       max_base_in_before_stability_mode, 
-      max_base_in_before_rebalance_mode, 
       ctx
     );
 
@@ -199,18 +198,10 @@ module su::vault {
       self.stability_collateral_ratio
     );
 
-    let (max_base_in_before_rebalance_mode, _) = treasury::max_mintable_x_coin(
-      treasury, 
-      treasury_cap_map, 
-      base_price, 
-      self.rebalance_collateral_ratio
-    );
-
-    let fee_in = compute_mint_fees(
+    let fee_in = mint_fee(
       self.x_fees, 
       &mut base_in, 
       max_base_in_before_stability_mode, 
-      max_base_in_before_rebalance_mode, 
       ctx
     );
 
@@ -220,8 +211,8 @@ module su::vault {
 
     coin::destroy_zero(f_coin);
 
-    let bonus_coin = if (base_in_value >= max_base_in_before_rebalance_mode) {
-      treasury::take_bonus(treasury, base_in_value - max_base_in_before_rebalance_mode, ctx)
+    let bonus_coin = if (base_in_value >= max_base_in_before_stability_mode) {
+      treasury::take_bonus(treasury, base_in_value - max_base_in_before_stability_mode, ctx)
     } else coin::zero(ctx);
 
     assert!(coin::value(&x_coin) >= min_x_coin_amount, EInvalidXCoinAmountOut);
@@ -284,11 +275,10 @@ module su::vault {
     (scaled_price / (PRECISION as u256) as u64)
   }
 
-  fun compute_mint_fees(
+  fun mint_fee(
     fees: Fees,
     base_in: &mut Coin<I_SUI>, 
     max_base_in_before_stability_mode: u64, 
-    max_base_in_before_liquidation_mode: u64,
     ctx: &mut TxContext
   ): Coin<I_SUI> {
     let base_in_value = coin::value(base_in);
@@ -300,8 +290,8 @@ module su::vault {
       coin::join(&mut fees_in, coin::split(base_in, fee_amount, ctx));
     } else {
       let standard_fee_amount = compute_fee(max_base_in_before_stability_mode,fees.standard_mint);
-      let liquidation_mode_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,fees.stability_mint);
-      coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + liquidation_mode_fee_amount, ctx)); 
+      let stability_mode_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,fees.stability_mint);
+      coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + stability_mode_fee_amount, ctx)); 
     };
 
     fees_in
