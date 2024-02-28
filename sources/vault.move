@@ -162,14 +162,12 @@ module su::vault {
 
     assert!(max_base_in_before_rebalance_mode != 0 || max_base_in_before_rebalance_mode > base_in_value, ECannotMintFCoinInLiquidationMode);
 
-    let mint_fee = mint_fee(
+    treasury::add_fee(treasury, mint_fee(
       self.f_fees, 
       &mut base_in, 
       max_base_in_before_stability_mode,
       ctx
-    );
-
-    treasury::add_fee(treasury, mint_fee);
+    ));
 
     let (f_coin, x_coin) = treasury::mint(treasury, base_in, c, base_price, MINT_F_COIN, ctx);
 
@@ -200,14 +198,12 @@ module su::vault {
       self.stability_collateral_ratio
     );
 
-    let mint_fee = mint_fee(
+    treasury::add_fee(treasury, mint_fee(
       self.x_fees, 
       &mut base_in, 
       max_base_in_before_stability_mode, 
       ctx
-    );
-
-    treasury::add_fee(treasury, mint_fee);
+    ));
 
     let (f_coin, x_coin) = treasury::mint(treasury, base_in, c, base_price, MINT_X_COIN, ctx);
 
@@ -263,13 +259,13 @@ module su::vault {
         min(max_base_out_before_rebalance_mode, coin::value(&base_out)), 
         ctx
       ));
-    
-    let fee_in = redeem_fee(
+
+    treasury::add_fee(treasury, redeem_fee(
       self.f_fees, 
       &mut base_out, 
       max_base_out_before_stability_mode, 
       ctx
-    );
+    ));
 
     assert!(coin::value(&base_out) >= min_base_amount, EInvalidBaseCoinAmountOut);
 
@@ -290,22 +286,39 @@ module su::vault {
 
     let base_price = destroy_price(self, oracle_price);
 
-    let (max_x_coin_in_before_stability_mode, _) = treasury::max_redeemable_x_coin(
+    let (_, max_base_out_before_stability_mode) = treasury::max_redeemable_x_coin(
+      treasury, 
+      base_price, 
+      self.stability_collateral_ratio
+    );
+
+    let (_, max_base_out_before_rebalance_mode) = treasury::max_redeemable_x_coin(
       treasury, 
       base_price, 
       self.rebalance_collateral_ratio
     );
 
-    let (max_x_coin_in_before_rebalance_mode, _) = treasury::max_redeemable_x_coin(
-      treasury, 
-      base_price, 
-      self.rebalance_collateral_ratio
+    assert!(max_base_out_before_rebalance_mode == 0, ECannotRedeemXCoinOnRebalanceMode);
+
+    let base_out = treasury::redeem(
+      treasury,
+      coin::zero(ctx),
+      x_coin_in,
+      c,
+      base_price,
+      ctx
     );
 
-    assert!(max_x_coin_in_before_rebalance_mode == 0, ECannotRedeemXCoinOnRebalanceMode);
+    treasury::add_fee(treasury, redeem_fee(
+      self.f_fees, 
+      &mut base_out, 
+      max_base_out_before_stability_mode, 
+      ctx
+    ));
 
-    // TODO
-    coin::zero(ctx)
+    assert!(coin::value(&base_out) >= min_base_amount, EInvalidBaseCoinAmountOut);
+
+    base_out
   }
 
   // === Public-View Functions ===
