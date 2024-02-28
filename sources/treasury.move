@@ -189,21 +189,6 @@ module su::treasury {
     su_state::max_mintable_x_coin(su_state, new_collateral_ratio)
   } 
 
-  public(friend) fun max_mintable_x_coin_with_incentives(
-    self: &mut Treasury, 
-    base_price: u64, 
-    new_collateral_ratio: u64,
-    incentive_ratio: u64
-  ): (u64, u64) {
-    assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
-
-    let state = load_treasury_state_and_maybe_upgrade(self);
-
-    let su_state = compute_su_state(state, base_price);
-
-    su_state::max_mintable_x_coin_with_incentives(su_state, new_collateral_ratio, incentive_ratio)
-  }
-
   public(friend) fun max_redeemable_f_coin(
     self: &mut Treasury, 
     base_price: u64, 

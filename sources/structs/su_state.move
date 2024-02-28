@@ -127,33 +127,6 @@ module su::su_state {
     )
   }
 
-  public(friend) fun max_mintable_x_coin_with_incentives(
-    self: SuState,
-    incentive_ratio: u64,
-    new_collateral_ratio: u64         
-  ): (u64, u64) {
-    let (
-      incentive_ratio,
-      new_collateral_ratio,
-    ) = (
-      (incentive_ratio as u256),
-      (new_collateral_ratio as u256),
-    );
-
-    let f_value = new_collateral_ratio * self.f_supply * self.f_nav;
-
-    if (self.base_value >= f_value) return (0, 0);
-
-    let delta = f_value - self.base_value;
-
-    let max_base_in = delta / (self.base_nav * (PRECISION + (incentive_ratio * new_collateral_ratio)));
-    
-    (
-      (max_base_in as u64), 
-      (max_base_in * self.base_nav * (PRECISION + incentive_ratio) / (self.x_nav * PRECISION) as u64)
-    )    
-  }
-
   public(friend) fun max_redeemable_f_coin(
     self: SuState,  
     new_collateral_ratio: u64   
