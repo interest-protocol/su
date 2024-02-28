@@ -30,7 +30,7 @@ module su::su_state {
 
   // === Public-Mutative Functions ===
 
-  public(friend)(friend) fun new(
+  public(friend) fun new(
     base_supply: u64,
     base_nav: u64,
     f_multiple: Int,

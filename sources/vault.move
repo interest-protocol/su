@@ -5,17 +5,15 @@ module su::vault {
   use sui::tx_context::TxContext;
   use sui::transfer::share_object;
   use sui::object::{Self, UID, ID};
-  use sui::balance::{Self, Balance};
   use sui::coin::{Self, Coin, TreasuryCap};
 
   use su::f_sui::F_SUI;
   use su::x_sui::X_SUI;
   use su::i_sui::I_SUI;
   use su::treasury::{Self, Treasury};
-  use su::treasury_cap_map::TreasuryCapMap;
 
-  use suitears::math64::mul_div_up;
   use suitears::oracle::{Self, Price};
+  use suitears::math64::{min, mul_div_up};
 
   // === Friends ===
 
@@ -30,7 +28,11 @@ module su::vault {
   const EInvalidXCoinAmountOut: u64 = 4;
   const ECannotMintFCoinInLiquidationMode: u64 = 5;
   const EStabilityCollateralRatioIsTooLow: u64 = 6;
-  const ERebalanceCollateralRatioIsTooHigh: u64 = 6;
+  const ERebalanceCollateralRatioIsTooHigh: u64 = 7;
+  const EZeroFCoinIsNotAllowed: u64 = 8;
+  const EZeroXCoinIsNotAllowed: u64 = 9;
+  const ECannotRedeemXCoinOnRebalanceMode: u64 = 10;
+  const EInvalidBaseCoinAmountOut: u64 = 4;
 
   // === Constants ===
 
@@ -62,7 +64,6 @@ module su::vault {
   // === Public-Mutative Functions ===
 
   public fun share_genesis_state(
-    treasury_cap_map: &mut TreasuryCapMap,
     f_treasury_cap: TreasuryCap<F_SUI>,
     x_treasury_cap: TreasuryCap<X_SUI>,
     c: &Clock,
@@ -74,7 +75,14 @@ module su::vault {
 
     let price = (scaled_price / (PRECISION as u256) as u64);
 
-    treasury::share_genesis_state(treasury_cap_map, f_treasury_cap, x_treasury_cap, c, price, base_balance_cap, ctx);
+    treasury::share_genesis_state(
+      f_treasury_cap, 
+      x_treasury_cap, 
+      c, 
+      price, 
+      base_balance_cap, 
+      ctx
+    );
 
     let f_fees = Fees {
       standard_mint: 2500000,
@@ -105,7 +113,6 @@ module su::vault {
   public fun mint_both(
     self: &Vault,
     treasury: &mut Treasury,
-    treasury_cap_map: &mut TreasuryCapMap,
     c: &Clock,
     base_in: Coin<I_SUI>,
     oracle_price: Price,
@@ -119,7 +126,7 @@ module su::vault {
 
     assert!(treasury::base_balance(treasury) == 0, ETreasuryMustBeEmpty);
 
-    let (f_coin, x_coin) = treasury::mint(treasury, treasury_cap_map, base_in, c, base_price, MINT_BOTH, ctx);
+    let (f_coin, x_coin) = treasury::mint(treasury, base_in, c, base_price, MINT_BOTH, ctx);
 
     assert!(coin::value(&f_coin) >= min_f_coin_amount, EInvalidFCoinAmountOut);
     assert!(coin::value(&x_coin) >= min_x_coin_amount, EInvalidXCoinAmountOut);
@@ -130,7 +137,6 @@ module su::vault {
   public fun mint_f_coin(
     self: &Vault,
     treasury: &mut Treasury,
-    treasury_cap_map: &mut TreasuryCapMap,
     c: &Clock,
     base_in: Coin<I_SUI>,
     oracle_price: Price,
@@ -144,30 +150,28 @@ module su::vault {
 
     let (max_base_in_before_stability_mode, _) = treasury::max_mintable_f_coin(
       treasury, 
-      treasury_cap_map, 
       base_price, 
       self.stability_collateral_ratio
     );
 
     let (max_base_in_before_rebalance_mode, _) = treasury::max_mintable_f_coin(
       treasury, 
-      treasury_cap_map, 
       base_price, 
       self.rebalance_collateral_ratio
     );
 
     assert!(max_base_in_before_rebalance_mode != 0 || max_base_in_before_rebalance_mode > base_in_value, ECannotMintFCoinInLiquidationMode);
 
-    let fee_in = mint_fee(
+    let mint_fee = mint_fee(
       self.f_fees, 
       &mut base_in, 
-      max_base_in_before_stability_mode, 
+      max_base_in_before_stability_mode,
       ctx
     );
 
-    treasury::add_fee(treasury, fee_in);
+    treasury::add_fee(treasury, mint_fee);
 
-    let (f_coin, x_coin) = treasury::mint(treasury, treasury_cap_map, base_in, c, base_price, MINT_F_COIN, ctx);
+    let (f_coin, x_coin) = treasury::mint(treasury, base_in, c, base_price, MINT_F_COIN, ctx);
 
     coin::destroy_zero(x_coin);
 
@@ -179,7 +183,6 @@ module su::vault {
   public fun mint_x_coin(
     self: &Vault,
     treasury: &mut Treasury,
-    treasury_cap_map: &mut TreasuryCapMap,
     c: &Clock,
     base_in: Coin<I_SUI>,
     oracle_price: Price,
@@ -193,21 +196,20 @@ module su::vault {
 
     let (max_base_in_before_stability_mode, _) = treasury::max_mintable_x_coin(
       treasury, 
-      treasury_cap_map, 
       base_price, 
       self.stability_collateral_ratio
     );
 
-    let fee_in = mint_fee(
+    let mint_fee = mint_fee(
       self.x_fees, 
       &mut base_in, 
       max_base_in_before_stability_mode, 
       ctx
     );
 
-    treasury::add_fee(treasury, fee_in);
+    treasury::add_fee(treasury, mint_fee);
 
-    let (f_coin, x_coin) = treasury::mint(treasury, treasury_cap_map, base_in, c, base_price, MINT_X_COIN, ctx);
+    let (f_coin, x_coin) = treasury::mint(treasury, base_in, c, base_price, MINT_X_COIN, ctx);
 
     coin::destroy_zero(f_coin);
 
@@ -218,6 +220,99 @@ module su::vault {
     assert!(coin::value(&x_coin) >= min_x_coin_amount, EInvalidXCoinAmountOut);
 
     (x_coin, bonus_coin)
+  }
+
+  public fun redeem_f_coin(
+    self: &Vault,
+    treasury: &mut Treasury,
+    c: &Clock,
+    f_coin_in: Coin<F_SUI>,
+    oracle_price: Price,
+    min_base_amount: u64,
+    ctx: &mut TxContext        
+  ): Coin<I_SUI> {
+    let f_coin_in_value = coin::value(&f_coin_in);
+    assert!(f_coin_in_value != 0, EZeroFCoinIsNotAllowed);   
+
+    let base_price = destroy_price(self, oracle_price);
+
+    let (max_f_coin_in_before_rebalance_mode, _) = treasury::max_redeemable_f_coin(
+      treasury, 
+      base_price, 
+      self.rebalance_collateral_ratio
+    );     
+
+    let redeem_fee = redeem_f_coin_fee(
+      self.f_fees, 
+      &mut f_coin_in, 
+      0, 
+      ctx
+    );
+
+    let redeem_fee_in_base = treasury::redeem(
+      treasury,
+      redeem_fee,
+      coin::zero(ctx),
+      c,
+      base_price,
+      ctx
+    );
+
+    treasury::add_fee(treasury, redeem_fee_in_base);
+
+    let base_out = treasury::redeem(
+      treasury,
+      f_coin_in,
+      coin::zero(ctx),
+      c,
+      base_price,
+      ctx
+    );
+
+    if (max_f_coin_in_before_rebalance_mode != 0) {
+      let bonus_coin = treasury::take_bonus(
+        treasury, 
+        min(max_f_coin_in_before_rebalance_mode, f_coin_in_value), 
+        ctx
+      );
+      coin::join(&mut base_out, bonus_coin);
+    };
+
+    assert!(coin::value(&base_out) >= min_base_amount, EInvalidBaseCoinAmountOut);
+
+    base_out
+  }
+
+  public fun redeem_x_coin(
+    self: &Vault,
+    treasury: &mut Treasury,
+    c: &Clock,
+    x_coin_in: Coin<X_SUI>,
+    oracle_price: Price,
+    min_base_amount: u64,
+    ctx: &mut TxContext        
+  ): Coin<I_SUI> {
+    let x_coin_in_value = coin::value(&x_coin_in);
+    assert!(x_coin_in_value != 0, EZeroXCoinIsNotAllowed);   
+
+    let base_price = destroy_price(self, oracle_price);
+
+    let (max_x_coin_in_before_stability_mode, _) = treasury::max_redeemable_x_coin(
+      treasury, 
+      base_price, 
+      self.rebalance_collateral_ratio
+    );
+
+    let (max_x_coin_in_before_rebalance_mode, _) = treasury::max_redeemable_x_coin(
+      treasury, 
+      base_price, 
+      self.rebalance_collateral_ratio
+    );
+
+    assert!(max_x_coin_in_before_rebalance_mode == 0, ECannotRedeemXCoinOnRebalanceMode);
+
+    // TODO
+    coin::zero(ctx)
   }
 
   // === Public-View Functions ===
@@ -286,16 +381,38 @@ module su::vault {
 
     // charge normal fees
     if (max_base_in_before_stability_mode >= base_in_value) {
-      let fee_amount = compute_fee(base_in_value,fees.standard_mint);
+      let fee_amount = compute_fee(base_in_value, fees.standard_mint);
       coin::join(&mut fees_in, coin::split(base_in, fee_amount, ctx));
     } else {
-      let standard_fee_amount = compute_fee(max_base_in_before_stability_mode,fees.standard_mint);
-      let stability_mode_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,fees.stability_mint);
-      coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + stability_mode_fee_amount, ctx)); 
+      let standard_fee_amount = compute_fee(max_base_in_before_stability_mode, fees.standard_mint);
+      let stability_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,fees.stability_mint);
+      coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + stability_fee_amount, ctx)); 
     };
 
     fees_in
   }
+
+  fun redeem_f_coin_fee(
+    fees: Fees,
+    coin_in: &mut Coin<F_SUI>, 
+    max_in_before_rebalance_mode: u64, 
+    ctx: &mut TxContext
+  ): Coin<F_SUI> {
+    let coin_in_value = coin::value(coin_in);
+    let fees_in = coin::zero(ctx);
+
+    // charge normal fees
+    if (max_in_before_rebalance_mode >= coin_in_value) {
+      let fee_amount = compute_fee(coin_in_value, fees.stability_redeem);
+      coin::join(&mut fees_in, coin::split(coin_in, fee_amount, ctx));
+    } else {
+      let stability_fee_amount = compute_fee(max_in_before_rebalance_mode, fees.stability_redeem);
+      let standard_fee_amount = compute_fee(coin_in_value - max_in_before_rebalance_mode,fees.standard_redeem);
+      coin::join(&mut fees_in, coin::split(coin_in, standard_fee_amount + stability_fee_amount, ctx)); 
+    };
+
+    fees_in
+  }  
 
   fun compute_fee(value: u64, fee: u64): u64 {
     mul_div_up(value, fee, PRECISION)
