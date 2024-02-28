@@ -40,8 +40,8 @@ module su::admin {
     treasury::set_fees(treasury, rebalance_fee, reserve_fee);
   }
 
-  public fun set_oracle_id(_self: &Admin, vault: &mut Vault, oracle_id: ID) {
-    vault::set_oracle_id(vault, oracle_id);
+  public fun set_oracle_id_address(_self: &Admin, vault: &mut Vault, oracle_id_address: address) {
+    vault::set_oracle_id(vault, oracle_id_address);
   }  
 
   public fun set_f_fees(

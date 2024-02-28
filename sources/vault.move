@@ -1,10 +1,11 @@
 module su::vault {
   // === Imports ===
   
+  use sui::math::pow;
   use sui::clock::Clock;
+  use sui::object::{Self, UID};
   use sui::tx_context::TxContext;
   use sui::transfer::share_object;
-  use sui::object::{Self, UID, ID};
   use sui::coin::{Self, Coin, TreasuryCap};
 
   use su::f_sui::F_SUI;
@@ -37,6 +38,7 @@ module su::vault {
   // === Constants ===
 
   const PRECISION: u64 = 1_000_000_000;
+  const PRECISION_DECIMALS: u8 = 9;
 
   // Mint Options
   const MINT_F_COIN: u8 = 0;
@@ -47,7 +49,7 @@ module su::vault {
 
   struct Vault has key {
     id: UID,
-    oracle_id: ID,
+    oracle_id_address: address,
     x_fees: Fees,
     f_fees: Fees,
     stability_collateral_ratio: u64,
@@ -102,7 +104,7 @@ module su::vault {
       id: object::new(ctx),
       f_fees,
       x_fees,
-      oracle_id,
+      oracle_id_address: object::id_to_address(&oracle_id),
       stability_collateral_ratio: 200 * PRECISION, // 200% CR
       rebalance_collateral_ratio: 180 * PRECISION, // 180 CR %
     };
@@ -323,10 +325,14 @@ module su::vault {
 
   // === Public-View Functions ===
 
+  public fun oracle_id() {
+    
+  }
+
   // === Public-Friend Functions ===
 
-  public(friend) fun set_oracle_id(self: &mut Vault, oracle_id: ID) {
-    self.oracle_id = oracle_id;
+  public(friend) fun set_oracle_id(self: &mut Vault, oracle_id_address: address) {
+    self.oracle_id_address = oracle_id_address;
   }
 
   public(friend) fun set_fees(
@@ -370,10 +376,16 @@ module su::vault {
   // === Private Functions ===
 
   fun destroy_price(self: &Vault, oracle_price: Price): u64 {
-    let (oracle_id, scaled_price, _, _) = oracle::destroy_price(oracle_price);
-    assert!(self.oracle_id == oracle_id, EInvalidOracle);
+    let (oracle_id, scaled_price, decimals, _) = oracle::destroy_price(oracle_price);
+    assert!(self.oracle_id_address == object::id_to_address(&oracle_id), EInvalidOracle);
 
-    (scaled_price / (PRECISION as u256) as u64)
+    if (decimals >= PRECISION_DECIMALS) {
+      let factor = pow(10, decimals - PRECISION_DECIMALS);
+      (scaled_price / (factor as u256) as u64)
+    } else {
+      let factor = pow(10, PRECISION_DECIMALS - decimals);
+      ((scaled_price * (factor as u256)) as u64)
+    }
   }
 
   fun mint_fee(
