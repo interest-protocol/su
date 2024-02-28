@@ -255,12 +255,15 @@ module su::vault {
       ctx
     );
 
-    if (max_base_out_before_rebalance_mode != 0) 
-      coin::join(&mut base_out, treasury::take_bonus(
+    if (max_base_out_before_rebalance_mode != 0) {
+      let bonus_coin = treasury::take_bonus(
         treasury, 
         min(max_base_out_before_rebalance_mode, coin::value(&base_out)), 
         ctx
-      ));
+      );
+
+       coin::join(&mut base_out, bonus_coin);
+    };
 
     treasury::add_fee(treasury, redeem_fee(
       self.f_fees, 
@@ -325,13 +328,85 @@ module su::vault {
 
   // === Public-View Functions ===
 
-  public fun oracle_id() {
-    
+  public fun oracle_id_address(self: &Vault): address {
+    self.oracle_id_address
   }
+
+  public fun f_standard_mint_fee(self: &Vault): u64 {
+    self.f_fees.standard_mint
+  }
+
+  public fun f_stability_mint_fee(self: &Vault): u64 {
+    self.f_fees.stability_mint
+  }
+
+  public fun f_standard_redeem_fee(self: &Vault): u64 {
+    self.f_fees.standard_redeem
+  }
+
+  public fun f_stability_redeem_fee(self: &Vault): u64 {
+    self.f_fees.stability_redeem
+  }  
+
+  public fun x_standard_mint_fee(self: &Vault): u64 {
+    self.x_fees.standard_mint
+  }
+
+  public fun x_stability_mint_fee(self: &Vault): u64 {
+    self.x_fees.stability_mint
+  }
+
+  public fun x_standard_redeem_fee(self: &Vault): u64 {
+    self.x_fees.standard_redeem
+  }
+
+  public fun x_stability_redeem_fee(self: &Vault): u64 {
+    self.x_fees.stability_redeem
+  }  
+
+  public fun stability_collateral_ratio(self: &Vault): u64 {
+    self.stability_collateral_ratio
+  }  
+
+  public fun rebalance_collateral_ratio(self: &Vault): u64 {
+    self.rebalance_collateral_ratio
+  }    
+
+  public fun reserve_fee(treasury: &mut Treasury): u64 {
+    treasury::reserve_fee(treasury)
+  }
+
+  public fun rebalance_fee(treasury: &mut Treasury): u64 {
+    treasury::rebalance_fee(treasury)
+  }  
+
+  public fun last_f_nav(treasury: &mut Treasury): u64 {
+    treasury::last_f_nav(treasury)
+  }
+
+  public fun genesis_price(treasury: &mut Treasury): u64 {
+    treasury::genesis_price(treasury)
+  }  
+
+  public fun base_balance_cap(treasury: &mut Treasury): u64 {
+    treasury::base_balance_cap(treasury)
+  }    
+
+  public (friend) fun base_balance(treasury: &mut Treasury): u64 {
+    treasury::base_balance(treasury)
+  }    
+
+  public (friend) fun reserve_balance(treasury: &mut Treasury): u64 {
+    treasury::reserve_balance(treasury)
+  }   
+
+  public (friend) fun rebalance_balance(treasury: &mut Treasury): u64 {
+    treasury::rebalance_balance(treasury)
+  }   
 
   // === Public-Friend Functions ===
 
-  public(friend) fun set_oracle_id(self: &mut Vault, oracle_id_address: address) {
+  public(friend) fun set_oracle_id_address(self: &mut Vault, oracle_id_address: address) {
     self.oracle_id_address = oracle_id_address;
   }
 

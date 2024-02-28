@@ -121,6 +121,16 @@ module su::treasury {
     share_object(treasury);
   } 
 
+  public(friend) fun reserve_fee(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    state.fees.reserve
+  }
+
+  public(friend) fun rebalance_fee(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    state.fees.rebalance
+  }
+
   public (friend) fun last_f_nav(self: &mut Treasury): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
     state.last_f_nav
@@ -245,7 +255,7 @@ module su::treasury {
     treasury_cap_mut_impl(&mut state.cap_map)
   }  
 
-  public(friend) fun update_base_balance_cap(self: &mut Treasury, new_base_balance_cap: u64) {
+  public(friend) fun set_base_balance_cap(self: &mut Treasury, new_base_balance_cap: u64) {
     let state = load_mut_treasury_state_and_maybe_upgrade(self);
     state.base_balance_cap = new_base_balance_cap;
   } 

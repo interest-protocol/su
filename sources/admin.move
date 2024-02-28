@@ -41,8 +41,12 @@ module su::admin {
   }
 
   public fun set_oracle_id_address(_self: &Admin, vault: &mut Vault, oracle_id_address: address) {
-    vault::set_oracle_id(vault, oracle_id_address);
+    vault::set_oracle_id_address(vault, oracle_id_address);
   }  
+
+  public(friend) fun set_base_balance_cap(_self: &Admin, treasury: &mut Treasury, new_base_balance_cap: u64) {
+    treasury::set_base_balance_cap(treasury, new_base_balance_cap)
+  }   
 
   public fun set_f_fees(
     _self: &Admin, 
