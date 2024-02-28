@@ -1,3 +1,4 @@
+// TODO replace by a live LST coin
 #[allow(lint(share_owned))]
 module su::f_sui {
   // === Imports ===

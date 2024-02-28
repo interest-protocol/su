@@ -1,4 +1,4 @@
-module su::rebalance_x_pool {
+module su::rebalance_f_pool {
   // === Imports ===
 
   use std::type_name::{Self, TypeName};

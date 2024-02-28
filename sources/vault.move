@@ -392,15 +392,15 @@ module su::vault {
     treasury::base_balance_cap(treasury)
   }    
 
-  public (friend) fun base_balance(treasury: &mut Treasury): u64 {
+  public fun base_balance(treasury: &mut Treasury): u64 {
     treasury::base_balance(treasury)
   }    
 
-  public (friend) fun reserve_balance(treasury: &mut Treasury): u64 {
+  public fun reserve_balance(treasury: &mut Treasury): u64 {
     treasury::reserve_balance(treasury)
   }   
 
-  public (friend) fun rebalance_balance(treasury: &mut Treasury): u64 {
+  public fun rebalance_balance(treasury: &mut Treasury): u64 {
     treasury::rebalance_balance(treasury)
   }   
 
