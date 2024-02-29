@@ -1,3 +1,6 @@
+/*
+* @dev All timestamps are in seconds.
+*/
 module su::rebalance_f_pool {
   // === Imports ===
 
@@ -39,16 +42,16 @@ module su::rebalance_f_pool {
     start: u64,
     last_update: u64,
     f_balance: Balance<F_SUI>,
+    extra_rewards_balances: Bag,
     base_balance: Balance<I_SUI>,
     reward_balance: Balance<I_SUI>,
     accrued_rewards_per_share: u256,
     extra_rewards: VecSet<TypeName>,
-    extra_rewards_map: Table<TypeName, Reward>,
-    extra_rewards_balances: Bag,
     epochs: TableVec<EpochSnapshot>,
+    extra_rewards_map: Table<TypeName, PoolReward>,
   }
 
-  struct Reward has store {
+  struct PoolReward has store, copy, drop {
     end: u64,
     balance: u64,
     rewards_per_second: u64,
@@ -59,15 +62,22 @@ module su::rebalance_f_pool {
     initial_f_balance: u64,
     final_f_balance: u64,
     base_balance: u64,
+    based_accrued_rewards_per_share: u256,
     accrued_rewards_per_share_map: VecMap<TypeName, u256>,
   }
 
   struct Account has key, store {
     id: UID,
     id_address: address, 
-    epoch_index: u64,
+    epoch: u64,
     initial_f_balance: u64,
-    reward_debt: VecMap<TypeName, u256>,
+    base_rewards: AccountReward,
+    rewards_map: VecMap<TypeName, AccountReward>,
+  }
+
+  struct AccountReward has store {
+    debt: u256,
+    amount: u64
   }
 
   // === Public-Mutative Functions ===
@@ -98,9 +108,10 @@ module su::rebalance_f_pool {
     Account {
       id: id,
       id_address,
-      epoch_index: 0,
+      epoch: 0,
       initial_f_balance: 0,
-      reward_debt: vec_map::empty()
+      base_rewards: AccountReward { debt: 0, amount: 0 },
+      rewards_map: vec_map::empty()
     }
   }
 
@@ -116,6 +127,7 @@ module su::rebalance_f_pool {
     assert!(f_coin_in_value != 0, EZeroDeposit);
 
     update_rewards(self, treasury, clock, account);
+    settle_account(self, clock, account);
 
     // WIP
     abort 0
@@ -123,13 +135,36 @@ module su::rebalance_f_pool {
 
   // === Public-View Functions ===
 
-
   // === Admin Functions ===
 
   // === Public-Friend Functions ===
 
   // === Private Functions ===
   
+  fun settle_account(self: &mut RebalancePool, clock: &Clock, account: &mut Account) {
+    let account_epoch = account.epoch;
+    let last_snapshot_epoch = table_vec::length(&self.epochs);
+
+    // Use the current values
+    if (last_snapshot_epoch == account_epoch) return;
+
+    account.epoch == last_snapshot_epoch;
+
+    let index = account_epoch - 1;
+
+
+    // Bring account up to the current value using the snapshots.
+    while (last_snapshot_epoch > index) {
+      
+      let snapshot = table_vec::borrow(&self.epochs, index);
+
+
+
+      index = index + 1;
+    };
+
+  }
+
   fun update_rewards(self: &mut RebalancePool, treasury: &mut Treasury, clock: &Clock, account: &mut Account) {
     let current_time = clock_timestamp_s(clock);
 
@@ -144,9 +179,7 @@ module su::rebalance_f_pool {
     if (f_balance_value == 0) return;
 
     // update base reward
-
     let base_reward = treasury::remove_rebalance_fee(treasury);
-
 
     self.accrued_rewards_per_share = self.accrued_rewards_per_share + (math64::mul_div_down(balance::value(&base_reward), PRECISION, f_balance_value) as u256);
 
