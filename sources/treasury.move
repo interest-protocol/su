@@ -25,7 +25,6 @@ module su::treasury {
   
   friend su::vault;
   friend su::admin;
-  friend su::rebalance_f_pool;
 
   // === Errors ===
 

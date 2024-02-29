@@ -5,6 +5,7 @@ module su::admin {
   use std::string;
 
   use sui::coin::Coin;
+  use sui::clock::Clock;
   use sui::transfer::transfer;
   use sui::object::{Self, UID};
   use sui::coin::{Self, CoinMetadata};
@@ -13,6 +14,7 @@ module su::admin {
   use su::i_sui::I_SUI;
   use su::vault::{Self, Vault};
   use su::treasury::{Self, Treasury};
+  use su::rebalance_f_pool::{Self, RebalancePool};
 
   // === Structs ===
 
@@ -84,6 +86,20 @@ module su::admin {
   ) {
     vault::set_rebalance_collateral_ratio(vault, rebalance_collateral_ratio);
   }   
+
+  public fun new_rebalance_f_pool_reward<CoinType: drop>(rebalance_pool: &mut RebalancePool) {
+    rebalance_f_pool::new_reward<CoinType>(rebalance_pool);
+  }
+
+  public fun add_rebalance_f_pool_rewards<CoinType: drop>(
+    _self: &Admin, 
+    rebalance_pool: &mut RebalancePool,
+    clock: &Clock,
+    coin_in: Coin<CoinType>,
+    end: u64
+  ) {
+    rebalance_f_pool::add_rewards(rebalance_pool, clock, coin_in, end);
+  }  
 
   public fun update_name<T: drop>(
     _self: &Admin,
