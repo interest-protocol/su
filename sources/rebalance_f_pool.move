@@ -6,8 +6,13 @@ module su::rebalance_f_pool {
   use sui::object::{Self, UID};
   use sui::table::{Self, Table};
   use sui::tx_context::TxContext;
+  use sui::transfer::share_object;
   use sui::vec_set::{Self, VecSet};
   use sui::vec_map::{Self, VecMap};
+  use sui::table_vec::{Self, TableVec};
+
+  use su::f_sui::F_SUI;
+  use su::i_sui::I_SUI;
 
   // === Friends ===
 
@@ -15,48 +20,60 @@ module su::rebalance_f_pool {
 
   // === Constants ===
 
+  // 1 Day in Milliseconds
+
+  const PRECISION: u64 = 1_000_000_000;
+
   // === Structs ===
 
   struct RebalancePool has key {
     id: UID,
-    epoch: Epoch,
-    unlock_duration: u64,
-    base_reward: TypeName,
-    extra_rewards: VecSet<TypeName>,
-    rewards: VecMap<TypeName, Rewards>
+    epochs: TableVec<EpochSnapshot>,
+    reward_coins: VecSet<TypeName>,
   }
 
-  struct Epoch has store {
-    epoch: u64,
-    prod: u256,
-  }
-
-  struct Rewards has store {
-    rate: u256,
-    period: u64,
-    queued: u256,
-    last_update: u64,
-    finished_at: u64,
+  struct EpochSnapshot has store, copy, drop {
+    f_balance: u64,
+    base_balance: u64,
+    accrued_rewards_per_share_map: VecMap<TypeName, u256>,
   }
 
   struct Account has key, store {
     id: UID,
-    epoch: Epoch,
-    addr: address, 
-    unlock_at: u64,
-    unlock_amount: u64,
-    initial_deposit: u64,
-    extra_rewards: VecMap<TypeName, Snapshot>
-  }
-
-  struct Snapshot has store {
-    pending: u64,
-    accumulated_rewards_per_stake: u256
+    id_address: address, 
+    epoch_index: u64,
+    initial_f_balance: u64,
+    reward_debt: VecMap<TypeName, u256>,
   }
 
   // === Public-Mutative Functions ===
 
+  #[allow(unused_function)]
+  fun init(ctx: &mut TxContext) {
+    let rebalance_pool = RebalancePool {
+      id: object::new(ctx),
+      epochs: table_vec::empty(ctx),
+      reward_coins: vec_set::empty()
+    };
+
+    share_object(rebalance_pool);
+  }
+
+  public fun new_account(ctx: &mut TxContext): Account {
+    let id = object::new(ctx);
+    let id_address = object::uid_to_address(&id);
+
+    Account {
+      id: id,
+      id_address,
+      epoch_index: 0,
+      initial_f_balance: 0,
+      reward_debt: vec_map::empty()
+    }
+  }
+
   // === Public-View Functions ===
+
 
   // === Admin Functions ===
 
@@ -64,30 +81,6 @@ module su::rebalance_f_pool {
 
   // === Private Functions ===
 
+
   // === Test Functions ===
-
-  // Total deposit in the pool by a user
-  public fun balance_of(account: address): u64 {
-    0
-  }
-
-  // Total unlocked balance in the pool by a user
-  public fun unlocked_balance_of(account: address): u64 {
-    0
-  }
-
-  // Total unlocked balance in the pool by a user
-  public fun unlocking_balance_of(account: address): (u64, u64) {
-    (0, 0)
-  }
-
-  // Total deposit in the pool
-  public fun total_supply(): u64 {
-    0
-  }
-
-  // Current amount of claimable rewards
-  public fun claimable(): u64 {
-    0
-  }  
 }
