@@ -5,7 +5,6 @@ module su::admin {
   use std::string;
 
   use sui::coin::Coin;
-  use sui::object::ID;
   use sui::transfer::transfer;
   use sui::object::{Self, UID};
   use sui::coin::{Self, CoinMetadata};

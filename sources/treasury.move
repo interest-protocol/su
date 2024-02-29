@@ -25,6 +25,7 @@ module su::treasury {
   
   friend su::vault;
   friend su::admin;
+  friend su::rebalance_f_pool;
 
   // === Errors ===
 
@@ -276,9 +277,10 @@ module su::treasury {
     };
   }
 
-  public(friend) fun remove_rebalance_fee(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
+  public(friend) fun remove_rebalance_fee(self: &mut Treasury): Balance<I_SUI> {
     let state = load_mut_treasury_state_and_maybe_upgrade(self);
-    coin::take(&mut state.rebalance_balance, amount, ctx)
+
+    balance::withdraw_all(&mut state.rebalance_balance)
   }
 
   public(friend) fun remove_reserve_fee(self: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
