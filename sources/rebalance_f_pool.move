@@ -182,6 +182,7 @@ module su::rebalance_f_pool {
       let snapshot = table_vec::borrow(&self.epochs, index);
 
       index = index + 1;
+      
     };
 
   }
