@@ -32,6 +32,8 @@ module su::rebalance_f_pool {
   const ENoZeroCoinValue: u64 = 0;
   const EWaitUntilRewardsEnd: u64 = 1;
   const ENotEnoughFBalance: u64 = 2;
+  const ENotEnoughBaseBalance: u64 = 3;
+  const ENotEnoughRewardBalance: u64 = 4;
 
   // === Constants ===
 
@@ -71,6 +73,7 @@ module su::rebalance_f_pool {
     f_balance: u64,
     base_balance: u64,
     rewards_map: VecMap<TypeName, AccountReward>,
+    rewards_last_update: u64
   }
 
   struct AccountReward has store {
@@ -107,7 +110,8 @@ module su::rebalance_f_pool {
       epoch: 0,
       f_balance: 0,
       base_balance: 0,
-      rewards_map: vec_map::empty()
+      rewards_map: vec_map::empty(),
+      rewards_last_update: 0
     }
   }
 
@@ -149,6 +153,49 @@ module su::rebalance_f_pool {
     update_all_account_rewards(self, account);
 
     coin::take(&mut self.f_balance, amount, ctx)
+  }
+
+  public fun remove_base(
+    self: &mut RebalancePool, 
+    clock: &Clock,
+    account: &mut Account, 
+    amount: u64, 
+    ctx: &mut TxContext        
+  ): Coin<I_SUI> {
+    update_pool_rewards(self, clock);
+    settle_account(self, account);
+
+    let base_balance_value = account.base_balance;
+
+    assert!(base_balance_value >= amount, ENotEnoughBaseBalance);
+
+    account.base_balance = account.base_balance - amount;
+
+    update_all_account_rewards(self, account);
+
+    coin::take(&mut self.base_balance, amount, ctx)
+  }
+
+  public fun remove_reward<CoinType: drop>(
+    self: &mut RebalancePool, 
+    clock: &Clock,
+    account: &mut Account, 
+    amount: u64, 
+    ctx: &mut TxContext        
+  ): Coin<CoinType> {
+    update_pool_rewards(self, clock);
+    settle_account(self, account);
+    update_all_account_rewards(self, account);
+
+    let reward_type_name = type_name::get<CoinType>();
+
+    let reward_account = vec_map::get_mut(&mut account.rewards_map, &reward_type_name);
+
+    assert!(reward_account.amount >= amount, ENotEnoughRewardBalance);
+
+    reward_account.amount = reward_account.amount - amount;
+
+    coin::take(bag::borrow_mut(&mut self.rewards_balances, reward_type_name), amount, ctx)
   }
 
   // === Public-View Functions ===
@@ -231,7 +278,10 @@ module su::rebalance_f_pool {
     };
   }
 
-  fun update_all_account_rewards(self: &mut RebalancePool, account: &mut Account) {
+  fun update_all_account_rewards(self: &RebalancePool, account: &mut Account) {
+
+    if (self.last_update == account.rewards_last_update) return;
+
     let rewards_vector = vec_set::keys(&self.rewards);
     let num_of_rewards = vector::length(rewards_vector);
 
@@ -246,6 +296,8 @@ module su::rebalance_f_pool {
 
       index = index + 1;
     };
+
+    account.rewards_last_update = self.last_update;
   }
 
   fun update_account_rewards(account: &mut Account, reward_type_name: &TypeName, accrued_rewards_per_share: u256) {
