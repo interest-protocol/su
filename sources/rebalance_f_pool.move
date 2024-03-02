@@ -68,7 +68,8 @@ module su::rebalance_f_pool {
     id: UID,
     id_address: address, 
     epoch: u64,
-    initial_f_balance: u64,
+    f_balance: u64,
+    base_balance: u64,
     rewards_map: VecMap<TypeName, AccountReward>,
   }
 
@@ -104,7 +105,8 @@ module su::rebalance_f_pool {
       id: id,
       id_address,
       epoch: 0,
-      initial_f_balance: 0,
+      f_balance: 0,
+      base_balance: 0,
       rewards_map: vec_map::empty()
     }
   }
@@ -120,7 +122,7 @@ module su::rebalance_f_pool {
     assert!(f_coin_in_value != 0, EZeroDeposit);
 
     update_rewards(self, clock);
-    settle_account(self, clock, account);
+    settle_account(self, account);
 
     // WIP
     abort 0
@@ -164,7 +166,7 @@ module su::rebalance_f_pool {
 
   // === Private Functions ===
   
-  fun settle_account(self: &mut RebalancePool, clock: &Clock, account: &mut Account) {
+  fun settle_account(self: &RebalancePool, account: &mut Account) {
     let account_epoch = account.epoch;
     let last_snapshot_epoch = table_vec::length(&self.epochs);
 
@@ -173,18 +175,42 @@ module su::rebalance_f_pool {
 
     account.epoch == last_snapshot_epoch;
 
-    let index = account_epoch - 1;
+    let index = account_epoch;
 
+    let rewards_vector = vec_set::keys(&self.rewards);
+
+    let num_of_rewards = vector::length(rewards_vector);
 
     // Bring account up to the current value using the snapshots.
     while (last_snapshot_epoch > index) {
       
       let snapshot = table_vec::borrow(&self.epochs, index);
 
-      index = index + 1;
-      
-    };
+      let j = 0;
 
+      while (num_of_rewards > 0) {
+
+        let reward_type_name = vector::borrow(rewards_vector, j);
+
+        let accrued_rewards_per_share = *vec_map::get(&snapshot.accrued_rewards_per_share_map, reward_type_name);
+
+        let reward_account = vec_map::get_mut(&mut account.rewards_map, reward_type_name);
+
+        let pending_rewards = compute_pending_rewards(account.f_balance, reward_account.debt, accrued_rewards_per_share);
+
+        reward_account.amount = reward_account.amount + pending_rewards;
+        reward_account.debt = compute_rewards_debt(account.f_balance, accrued_rewards_per_share);
+
+        j = j + 1;
+      };
+
+      let f_percent = math64::mul_div_down(account.f_balance, PRECISION, snapshot.initial_f_balance);
+
+      account.f_balance = math64::mul_div_down(f_percent, snapshot.final_f_balance, PRECISION);
+      account.base_balance = account.base_balance + math64::mul_div_down(f_percent, snapshot.base_balance, PRECISION);
+
+      index = index + 1;
+    };
   }
 
   fun update_rewards(self: &mut RebalancePool, clock: &Clock) {
@@ -212,7 +238,7 @@ module su::rebalance_f_pool {
       let reward = table::borrow_mut(&mut self.rewards_map, key);
 
       if (reward.end > current_time) {
-        reward.accrued_rewards_per_share = calculate_accrued_rewards_per_share(
+        reward.accrued_rewards_per_share = compute_accrued_rewards_per_share(
           reward.rewards_per_second, 
           reward.accrued_rewards_per_share,
           f_balance_value,
@@ -224,7 +250,7 @@ module su::rebalance_f_pool {
     };
   }
 
-  fun calculate_accrued_rewards_per_share(
+  fun compute_accrued_rewards_per_share(
     rewards_per_second: u64,
     last_accrued_rewards_per_share: u256,
     total_staked_token: u64,
@@ -240,6 +266,14 @@ module su::rebalance_f_pool {
      );
 
     last_accrued_rewards_per_share + ((rewards_per_second * timestamp_delta * stake_factor) / total_staked_token)
+  }
+
+  fun compute_rewards_debt(f_balance: u64, accrued_rewards_per_share: u256): u256 {
+    (((f_balance as u256) * accrued_rewards_per_share / (PRECISION as u256)))
+  }
+
+  fun compute_pending_rewards(f_balance: u64, debt: u256, accrued_rewards_per_share: u256): u64 {
+    ((((f_balance as u256) * accrued_rewards_per_share / (PRECISION as u256)) - debt) as u64)
   }
 
   fun clock_timestamp_s(c: &Clock): u64 {
