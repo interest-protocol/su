@@ -11,7 +11,6 @@ module su::rebalance_f_pool {
   use sui::coin::{Self, Coin};
   use sui::object::{Self, UID};
   use sui::clock::{Self, Clock};
-  use sui::table::{Self, Table};
   use sui::tx_context::TxContext;
   use sui::transfer::share_object;
   use sui::vec_set::{Self, VecSet};
@@ -30,7 +29,7 @@ module su::rebalance_f_pool {
 
   // === Errors ===
 
-  const ENoZeroDeposit: u64 = 0;
+  const ENoZeroCoinValue: u64 = 0;
   const EWaitUntilRewardsEnd: u64 = 1;
 
   // === Constants ===
@@ -48,7 +47,7 @@ module su::rebalance_f_pool {
     epochs: TableVec<EpochSnapshot>,
     rewards: VecSet<TypeName>,
     rewards_balances: Bag,
-    rewards_map: Table<TypeName, PoolReward>,
+    rewards_map: VecMap<TypeName, PoolReward>,
   }
 
   struct PoolReward has store, copy, drop {
@@ -90,7 +89,7 @@ module su::rebalance_f_pool {
       base_balance: balance::zero(),
       epochs: table_vec::empty(ctx),
       rewards: vec_set::empty(),
-      rewards_map: table::new(ctx),
+      rewards_map: vec_map::empty(),
       rewards_balances: bag::new(ctx)
     };
 
@@ -111,7 +110,7 @@ module su::rebalance_f_pool {
     }
   }
 
-  public fun deposit(
+  public fun add_f_sui(
     self: &mut RebalancePool, 
     clock: &Clock,
     account: &mut Account, 
@@ -119,13 +118,20 @@ module su::rebalance_f_pool {
     ctx: &mut TxContext
   ) {
     let f_coin_in_value = coin::value(&f_coin_in);
-    assert!(f_coin_in_value != 0, ENoZeroDeposit);
+    assert!(f_coin_in_value != 0, ENoZeroCoinValue);
 
-    update_rewards(self, clock);
+    update_pool_rewards(self, clock);
     settle_account(self, account);
 
-    // WIP
-    abort 0
+    balance::join(&mut self.f_balance, coin::into_balance(f_coin_in));
+
+    account.f_balance = account.f_balance + f_coin_in_value;
+
+    update_all_account_rewards(self, account);
+  }
+
+  public fun remove_f_sui() {
+    
   }
 
   // === Public-View Functions ===
@@ -138,7 +144,7 @@ module su::rebalance_f_pool {
     let key = type_name::get<CoinType>();
 
     bag::add(&mut self.rewards_balances, key, balance::zero<CoinType>());
-    table::add(&mut self.rewards_map, key, PoolReward{ end: 0, rewards_per_second: 0, accrued_rewards_per_share: 0 });
+    vec_map::insert(&mut self.rewards_map, key, PoolReward{ end: 0, rewards_per_second: 0, accrued_rewards_per_share: 0 });
   }
 
   public(friend) fun add_rewards<CoinType: drop>(
@@ -149,11 +155,11 @@ module su::rebalance_f_pool {
   ) {
     let current_time = clock_timestamp_s(clock);
 
-    update_rewards(self,clock);
+    update_pool_rewards(self,clock);
 
     let key = type_name::get<CoinType>();
 
-    let pool_rewards = table::borrow_mut(&mut self.rewards_map, key);
+    let pool_rewards = vec_map::get_mut(&mut self.rewards_map, &key);
 
     assert!(end > pool_rewards.end, EWaitUntilRewardsEnd);
 
@@ -194,12 +200,7 @@ module su::rebalance_f_pool {
 
         let accrued_rewards_per_share = *vec_map::get(&snapshot.accrued_rewards_per_share_map, reward_type_name);
 
-        let reward_account = vec_map::get_mut(&mut account.rewards_map, reward_type_name);
-
-        let pending_rewards = compute_pending_rewards(account.f_balance, reward_account.debt, accrued_rewards_per_share);
-
-        reward_account.amount = reward_account.amount + pending_rewards;
-        reward_account.debt = compute_rewards_debt(account.f_balance, accrued_rewards_per_share);
+        update_account_rewards(account, reward_type_name, accrued_rewards_per_share);
 
         j = j + 1;
       };
@@ -213,7 +214,33 @@ module su::rebalance_f_pool {
     };
   }
 
-  fun update_rewards(self: &mut RebalancePool, clock: &Clock) {
+  fun update_all_account_rewards(self: &mut RebalancePool, account: &mut Account) {
+    let rewards_vector = vec_set::keys(&self.rewards);
+    let num_of_rewards = vector::length(rewards_vector);
+
+    let index = 0;
+
+    while (num_of_rewards > index) {
+      let reward_type_name = vector::borrow(rewards_vector, index);
+
+      let pool_rewards = *vec_map::get(&self.rewards_map, reward_type_name);
+
+      update_account_rewards(account, reward_type_name, pool_rewards.accrued_rewards_per_share);
+
+      index = index + 1;
+    };
+  }
+
+  fun update_account_rewards(account: &mut Account, reward_type_name: &TypeName, accrued_rewards_per_share: u256) {
+    let reward_account = vec_map::get_mut(&mut account.rewards_map, reward_type_name);
+
+    let pending_rewards = compute_pending_rewards(account.f_balance, reward_account.debt, accrued_rewards_per_share);
+
+    reward_account.amount = reward_account.amount + pending_rewards;
+    reward_account.debt = compute_rewards_debt(account.f_balance, accrued_rewards_per_share);
+  }
+
+  fun update_pool_rewards(self: &mut RebalancePool, clock: &Clock) {
     let current_time = clock_timestamp_s(clock);
 
     let time_elapsed = current_time - self.last_update;
@@ -235,7 +262,7 @@ module su::rebalance_f_pool {
       
       let key = *vector::borrow(reward_type_names, index);
 
-      let reward = table::borrow_mut(&mut self.rewards_map, key);
+      let reward = vec_map::get_mut(&mut self.rewards_map, &key);
 
       if (reward.end > current_time) {
         reward.accrued_rewards_per_share = compute_accrued_rewards_per_share(
