@@ -30,7 +30,7 @@ module su::rebalance_f_pool {
 
   // === Errors ===
 
-  const EZeroDeposit: u64 = 0;
+  const ENoZeroDeposit: u64 = 0;
   const EWaitUntilRewardsEnd: u64 = 1;
 
   // === Constants ===
@@ -119,7 +119,7 @@ module su::rebalance_f_pool {
     ctx: &mut TxContext
   ) {
     let f_coin_in_value = coin::value(&f_coin_in);
-    assert!(f_coin_in_value != 0, EZeroDeposit);
+    assert!(f_coin_in_value != 0, ENoZeroDeposit);
 
     update_rewards(self, clock);
     settle_account(self, account);
