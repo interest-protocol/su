@@ -18,10 +18,13 @@ module su::rebalance_f_pool {
   use sui::balance::{Self, Balance};
   use sui::table_vec::{Self, TableVec};
 
+  use suitears::math64;
+  use suitears::oracle::Price;
+  
   use su::f_sui::F_SUI;
   use su::i_sui::I_SUI;
-
-  use suitears::math64;
+  use su::vault::{Self, Vault};
+  use su::treasury::{Self, Treasury};
 
   // === Friends ===
 
@@ -34,6 +37,7 @@ module su::rebalance_f_pool {
   const ENotEnoughFBalance: u64 = 2;
   const ENotEnoughBaseBalance: u64 = 3;
   const ENotEnoughRewardBalance: u64 = 4;
+  const ECanOnlyLiquidateOnRebalanceMode: u64 = 5;
 
   // === Constants ===
 
@@ -196,6 +200,22 @@ module su::rebalance_f_pool {
     reward_account.amount = reward_account.amount - amount;
 
     coin::take(bag::borrow_mut(&mut self.rewards_balances, reward_type_name), amount, ctx)
+  }
+
+  public fun liquidate(
+    self: &mut RebalancePool,
+    vault: &Vault,
+    treasury: &mut Treasury,
+    c: &Clock,
+    f_coin_in: Coin<F_SUI>,
+    oracle_price: Price,
+    min_base_amount: u64,
+    ctx: &mut TxContext        
+  ) {
+
+    let (_, max_base_out_before_rebalance_mode) = vault::max_redeemable_f_coin_for_rebalance_mode(vault, treasury, oracle_price);
+
+    abort 0
   }
 
   // === Public-View Functions ===

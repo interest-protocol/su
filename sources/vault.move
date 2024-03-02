@@ -404,6 +404,20 @@ module su::vault {
     treasury::rebalance_balance(treasury)
   }   
 
+  public fun max_redeemable_f_coin_for_rebalance_mode(
+    self: &Vault,
+    treasury: &mut Treasury,
+    oracle_price: Price,     
+  ): (u64, u64) {
+    let base_price = destroy_price(self, oracle_price);
+
+    treasury::max_redeemable_f_coin(
+      treasury, 
+      base_price, 
+      self.rebalance_collateral_ratio
+    ) 
+  }  
+
   // === Public-Friend Functions ===
 
   public(friend) fun set_oracle_id_address(self: &mut Vault, oracle_id_address: address) {

@@ -8,6 +8,8 @@ module su::su_state {
   // === Friends ===
 
   friend su::treasury;
+  #[test_only]
+  friend su::su_state_tests;
 
   // === Structs ===
 
