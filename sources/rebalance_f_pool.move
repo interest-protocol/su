@@ -31,6 +31,7 @@ module su::rebalance_f_pool {
 
   const ENoZeroCoinValue: u64 = 0;
   const EWaitUntilRewardsEnd: u64 = 1;
+  const ENotEnoughFBalance: u64 = 2;
 
   // === Constants ===
 
@@ -114,8 +115,7 @@ module su::rebalance_f_pool {
     self: &mut RebalancePool, 
     clock: &Clock,
     account: &mut Account, 
-    f_coin_in: Coin<F_SUI>, 
-    ctx: &mut TxContext
+    f_coin_in: Coin<F_SUI>
   ) {
     let f_coin_in_value = coin::value(&f_coin_in);
     assert!(f_coin_in_value != 0, ENoZeroCoinValue);
@@ -130,8 +130,25 @@ module su::rebalance_f_pool {
     update_all_account_rewards(self, account);
   }
 
-  public fun remove_f_sui() {
-    
+  public fun remove_f_sui(
+    self: &mut RebalancePool, 
+    clock: &Clock,
+    account: &mut Account, 
+    amount: u64, 
+    ctx: &mut TxContext    
+  ): Coin<F_SUI> {
+    update_pool_rewards(self, clock);
+    settle_account(self, account);
+
+    let f_balance_value = account.f_balance;
+
+    assert!(f_balance_value >= amount, ENotEnoughFBalance);    
+
+    account.f_balance = account.f_balance - amount;
+
+    update_all_account_rewards(self, account);
+
+    coin::take(&mut self.f_balance, amount, ctx)
   }
 
   // === Public-View Functions ===
