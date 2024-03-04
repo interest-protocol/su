@@ -105,8 +105,8 @@ module su::vault {
       f_fees,
       x_fees,
       oracle_id_address: object::id_to_address(&oracle_id),
-      stability_collateral_ratio: 200 * PRECISION, // 200% CR
-      rebalance_collateral_ratio: 180 * PRECISION, // 180 CR %
+      stability_collateral_ratio: 2 * PRECISION, // 200% CR
+      rebalance_collateral_ratio: 18 * PRECISION / 10, // 180 CR %
     };
 
     share_object(vault);
