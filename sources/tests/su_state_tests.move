@@ -54,7 +54,8 @@ module su::su_state_tests {
     let state = make_high_cr_state();
 
     let (max_base_in_before_rebalance, max_f_coin_minted_before_rebalance ) = su_state::max_mintable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
-
+    
+    // 9x CR => we can mint a lot of F_COIN
     assert_eq(max_base_in_before_rebalance, 137333333333);
     assert_eq(max_f_coin_minted_before_rebalance, 249696969696);
 
@@ -100,10 +101,29 @@ module su::su_state_tests {
 
     let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = su_state::max_redeemable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
 
-    // CR is very healthy, no bonuses. 
+    // CR is very unhealthy, we have a bonus when minting F_COIN
     assert_eq(max_base_out_before_rebalance, 22222222222);
     assert_eq(max_f_coin_burnt_before_rebalance, 33333333333);       
   }
+
+  #[test]
+  fun max_redeemable_x_coin() {
+    let state = make_high_cr_state();
+
+    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = su_state::max_redeemable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
+
+    // CR is very healthy, can mint X_COIN
+    assert_eq(max_base_out_before_rebalance, 74067415730);
+    assert_eq(max_f_coin_burnt_before_rebalance, 82400000000);   
+
+    let state = make_low_cr_state();
+
+    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = su_state::max_redeemable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
+
+    // CR is very unhealthy, should not be able to redeem X_COINS
+    assert_eq(max_base_out_before_rebalance, 0);
+    assert_eq(max_f_coin_burnt_before_rebalance, 0);       
+  }  
 
   // 9x CR
   fun make_high_cr_state(): SuState {
