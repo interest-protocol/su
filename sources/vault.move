@@ -309,7 +309,7 @@ module su::vault {
       self.rebalance_collateral_ratio
     );
 
-    assert!(max_base_out_before_rebalance_mode == 0, ECannotRedeemXCoinOnRebalanceMode);
+    assert!(max_base_out_before_rebalance_mode != 0, ECannotRedeemXCoinOnRebalanceMode);
 
     let base_out = treasury::redeem(
       treasury,
@@ -320,8 +320,8 @@ module su::vault {
       ctx
     );
 
-    treasury::add_fee(treasury, redeem_f_coin_fee(
-      self.f_fees, 
+    treasury::add_fee(treasury, redeem_x_coin_fee(
+      self.x_fees, 
       &mut base_out, 
       max_base_out_before_stability_mode, 
       ctx
@@ -559,6 +559,30 @@ module su::vault {
 
     fees_in
   }  
+
+  fun redeem_x_coin_fee(
+    fees: Fees,
+    base_out: &mut Coin<I_SUI>, 
+    max_base_out_before_stability_mode: u64, 
+    ctx: &mut TxContext
+  ): Coin<I_SUI> {
+    let base_out_value = coin::value(base_out);
+    let fees_in = coin::zero(ctx);
+
+    // charge high fees
+    let fee_amount = if (max_base_out_before_stability_mode == 0) {
+      compute_fee(base_out_value, fees.stability_redeem)
+    } else if (max_base_out_before_stability_mode >= base_out_value) {
+      compute_fee(base_out_value, fees.standard_redeem)
+    } else {
+      let standard_fee_amount = compute_fee(max_base_out_before_stability_mode, fees.standard_redeem);
+      let stability_fee_amount = compute_fee(base_out_value - max_base_out_before_stability_mode,fees.stability_redeem);
+
+      stability_fee_amount + standard_fee_amount
+    };
+
+    fees_in
+  }    
 
   fun compute_fee(value: u64, fee: u64): u64 {
     mul_div_up(value, fee, PRECISION)
