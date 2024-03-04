@@ -5,7 +5,7 @@ module su::su_state_tests {
 
   use suitears::int;
 
-  use su::su_state;
+  use su::su_state::{Self, SuState};
 
   const PRECISION: u64 = 1_000_000_000;
   const REBALANCE_COLLATERAL_RATIO: u64 = 1_600_000_000;
@@ -15,7 +15,7 @@ module su::su_state_tests {
 
     let base_supply = 100 * PRECISION;
     let base_nav = 2 * PRECISION;
-    let f_multiple =int::from_u64(11 * PRECISION / 10);
+    let f_multiple = int::from_u64(11 * PRECISION / 10);
     let f_supply = 20 * PRECISION;
     let f_nav = 11 * PRECISION / 10;
     let x_supply = 80 * PRECISION;
@@ -43,23 +43,7 @@ module su::su_state_tests {
 
   #[test]
   fun collateral_ratio() {
-    let base_supply = 100 * PRECISION;
-    let base_nav = 2 * PRECISION;
-    let f_multiple =int::from_u64(11 * PRECISION / 10);
-    let f_supply = 20 * PRECISION;
-    let f_nav = 11 * PRECISION / 10;
-    let x_supply = 80 * PRECISION;
-    let x_nav = 2225 * PRECISION / 1000;
-
-    let state = su_state::new(
-      base_supply,
-      base_nav,
-      f_multiple,
-      f_supply,
-      f_nav,
-      x_supply,
-      x_nav,
-    );
+    let state = make_high_cr_state();
 
     // 200 / 22 => 9.09x
     assert_eq(su_state::collateral_ratio(state), 9090909090);  
@@ -67,48 +51,14 @@ module su::su_state_tests {
 
   #[test]
   fun max_mintable_f_coin() {
-    let base_supply = 100 * PRECISION;
-    let base_nav = 2 * PRECISION;
-    let f_multiple = int::from_u64(11 * PRECISION / 10);
-    let f_supply = 20 * PRECISION;
-    let f_nav = 11 * PRECISION / 10;
-    let x_supply = 80 * PRECISION;
-    let x_nav = 2225 * PRECISION / 1000;    
-
-    let state = su_state::new(
-      base_supply,
-      base_nav,
-      f_multiple,
-      f_supply,
-      f_nav,
-      x_supply,
-      x_nav,
-    );
-
+    let state = make_high_cr_state();
 
     let (max_base_in_before_rebalance, max_f_coin_minted_before_rebalance ) = su_state::max_mintable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
 
     assert_eq(max_base_in_before_rebalance, 137333333333);
     assert_eq(max_f_coin_minted_before_rebalance, 249696969696);
 
-    let base_supply = 100 * PRECISION;
-    let base_nav = 1 * PRECISION;
-    let f_multiple = int::from_u64(11 * PRECISION / 10);
-    let f_supply = 50 * PRECISION;
-    let f_nav = 13 * PRECISION / 10;
-    let x_supply = 50 * PRECISION;
-    let x_nav = 2225 * PRECISION / 1000;    
-
-    let state = su_state::new(
-      base_supply,
-      base_nav,
-      f_multiple,
-      f_supply,
-      f_nav,
-      x_supply,
-      x_nav,
-    );
-
+    let state = make_low_cr_state();
 
     let (max_base_in_before_rebalance, max_f_coin_minted_before_rebalance ) = su_state::max_mintable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
 
@@ -119,23 +69,7 @@ module su::su_state_tests {
 
   #[test]
   fun max_mintable_x_coin() {
-    let base_supply = 100 * PRECISION;
-    let base_nav = 2 * PRECISION;
-    let f_multiple = int::from_u64(11 * PRECISION / 10);
-    let f_supply = 20 * PRECISION;
-    let f_nav = 11 * PRECISION / 10;
-    let x_supply = 80 * PRECISION;
-    let x_nav = 2225 * PRECISION / 1000;    
-
-    let state = su_state::new(
-      base_supply,
-      base_nav,
-      f_multiple,
-      f_supply,
-      f_nav,
-      x_supply,
-      x_nav,
-    );
+    let state = make_high_cr_state();
 
     let (max_base_in_before_rebalance,max_x_coin_minted_before_rebalance ) = su_state::max_mintable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
 
@@ -143,6 +77,37 @@ module su::su_state_tests {
     assert_eq(max_base_in_before_rebalance, 0);
     assert_eq(max_x_coin_minted_before_rebalance, 0);
 
+    let state = make_low_cr_state();
+
+    let (max_base_in_before_rebalance,max_x_coin_minted_before_rebalance ) = su_state::max_mintable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
+
+    // Have a CR < 1.6x there is an incentive to mint X Coin
+    assert_eq(max_base_in_before_rebalance, 20 * PRECISION);
+    assert_eq(max_x_coin_minted_before_rebalance, 8988764044);    
+  }  
+
+  // 9x CR
+  fun make_high_cr_state(): SuState {
+    let base_supply = 100 * PRECISION;
+    let base_nav = 2 * PRECISION;
+    let f_multiple =int::from_u64(11 * PRECISION / 10);
+    let f_supply = 20 * PRECISION;
+    let f_nav = 11 * PRECISION / 10;
+    let x_supply = 80 * PRECISION;
+    let x_nav = 2225 * PRECISION / 1000;
+
+    su_state::new(
+      base_supply,
+      base_nav,
+      f_multiple,
+      f_supply,
+      f_nav,
+      x_supply,
+      x_nav,
+    )
+  }
+
+  fun make_low_cr_state(): SuState {
     let base_supply = 100 * PRECISION;
     let base_nav = 1 * PRECISION;
     let f_multiple = int::from_u64(11 * PRECISION / 10);
@@ -151,7 +116,7 @@ module su::su_state_tests {
     let x_supply = 50 * PRECISION;
     let x_nav = 2225 * PRECISION / 1000; 
 
-    let state = su_state::new(
+    su_state::new(
       base_supply,
       base_nav,
       f_multiple,
@@ -159,12 +124,6 @@ module su::su_state_tests {
       f_nav,
       x_supply,
       x_nav,
-    );
-
-    let (max_base_in_before_rebalance,max_x_coin_minted_before_rebalance ) = su_state::max_mintable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
-
-    // Have a CR < 1.6x there is an incentive to mint X Coin
-    assert_eq(max_base_in_before_rebalance, 20 * PRECISION);
-    assert_eq(max_x_coin_minted_before_rebalance, 8988764044);    
-  }  
+    )   
+  }
 }
