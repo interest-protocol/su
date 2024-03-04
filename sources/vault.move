@@ -546,16 +546,15 @@ module su::vault {
     let fees_in = coin::zero(ctx);
 
     // charge high fees
-    if (max_base_out_before_stability_mode == 0) {
-      let fee_amount = compute_fee(base_out_value, fees.standard_redeem);
-      coin::join(&mut fees_in, coin::split(base_out, fee_amount, ctx));
+    let fee_amount = if (max_base_out_before_stability_mode == 0) {
+      compute_fee(base_out_value, fees.standard_redeem)
     } else if (max_base_out_before_stability_mode >= base_out_value) {
-      let fee_amount = compute_fee(base_out_value, fees.stability_mint);
-      coin::join(&mut fees_in, coin::split(base_out, fee_amount, ctx));      
+      compute_fee(base_out_value, fees.stability_redeem)
     } else {
       let stability_fee_amount = compute_fee(max_base_out_before_stability_mode, fees.stability_redeem);
       let standard_fee_amount = compute_fee(base_out_value - max_base_out_before_stability_mode,fees.standard_redeem);
-      coin::join(&mut fees_in, coin::split(base_out, standard_fee_amount + stability_fee_amount, ctx)); 
+
+      stability_fee_amount + standard_fee_amount
     };
 
     fees_in

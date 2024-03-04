@@ -94,7 +94,15 @@ module su::su_state_tests {
 
     // CR is very healthy, no bonuses. 
     assert_eq(max_base_out_before_rebalance, 0);
-    assert_eq(max_f_coin_burnt_before_rebalance, 0);    
+    assert_eq(max_f_coin_burnt_before_rebalance, 0);   
+
+    let state = make_low_cr_state();
+
+    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = su_state::max_redeemable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
+
+    // CR is very healthy, no bonuses. 
+    assert_eq(max_base_out_before_rebalance, 22222222222);
+    assert_eq(max_f_coin_burnt_before_rebalance, 33333333333);       
   }
 
   // 9x CR
