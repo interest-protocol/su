@@ -1,6 +1,8 @@
 module su::su_state {
   // === Imports ===
 
+  use std::debug::print;
+
   use suitears::math64::min;
   use suitears::int::{Self, Int};
   use suitears::math256::mul_div_down;
@@ -98,16 +100,16 @@ module su::su_state {
 
     let new_collateral_ratio = (new_collateral_ratio as u256);
 
-    let f_value = new_collateral_ratio * self.f_supply * self.f_nav;
+    let f_value = new_collateral_ratio * self.f_supply * PRECISION;
 
-    if (f_value >= self.base_value) return (0 ,0);
+    if (f_value >= self.base_value) return (0, 0);
 
       let new_collateral_ratio = new_collateral_ratio - PRECISION;
       let delta = self.base_value - f_value;
 
     (
       (delta / (self.base_nav * new_collateral_ratio) as u64),
-      (delta / (self.f_nav * new_collateral_ratio) as u64)
+      (delta / (PRECISION * new_collateral_ratio) as u64)
     )
   }
 
