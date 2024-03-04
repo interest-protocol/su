@@ -271,7 +271,7 @@ module su::vault {
        coin::join(&mut base_out, bonus_coin);
     };
 
-    treasury::add_fee(treasury, redeem_fee(
+    treasury::add_fee(treasury, redeem_f_coin_fee(
       self.f_fees, 
       &mut base_out, 
       max_base_out_before_stability_mode, 
@@ -320,7 +320,7 @@ module su::vault {
       ctx
     );
 
-    treasury::add_fee(treasury, redeem_fee(
+    treasury::add_fee(treasury, redeem_f_coin_fee(
       self.f_fees, 
       &mut base_out, 
       max_base_out_before_stability_mode, 
@@ -492,15 +492,21 @@ module su::vault {
     let base_in_value = coin::value(base_in);
     let fees_in = coin::zero<I_SUI>(ctx);
 
-    // charge normal fees
-    if (max_base_in_before_stability_mode >= base_in_value) {
-      let fee_amount = compute_fee(base_in_value, fees.standard_mint);
-      coin::join(&mut fees_in, coin::split(base_in, fee_amount, ctx));
-    } else {
-      let standard_fee_amount = compute_fee(max_base_in_before_stability_mode, fees.standard_mint);
-      let stability_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,fees.stability_mint);
-      coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + stability_fee_amount, ctx)); 
+    // charge high fees - we r below the stability mode
+    let fee_amount = if (max_base_in_before_stability_mode == 0)
+      compute_fee(base_in_value,fees.stability_mint)
+    else {
+      let standard_fee_amount = compute_fee(max_base_in_before_stability_mode,fees.standard_mint);
+
+      let stability_fee_amount = if (base_in_value >= max_base_in_before_stability_mode) 
+        compute_fee(base_in_value - max_base_in_before_stability_mode,fees.stability_mint)
+      else 
+        0;
+
+      stability_fee_amount + standard_fee_amount
     };
+
+    coin::join(&mut fees_in, coin::split(base_in, fee_amount, ctx));
 
     fees_in
   }
@@ -523,7 +529,7 @@ module su::vault {
       coin::join(&mut fees_in, coin::split(base_in, stability_fee_amount, ctx)); 
     } else {
       let standard_fee_amount = compute_fee(base_in_value - max_base_in_before_stability_mode,fees.stability_mint);
-      let stability_fee_amount = compute_fee(max_base_in_before_stability_mode,fees.stability_mint);
+      let stability_fee_amount = compute_fee(max_base_in_before_stability_mode,fees.standard_mint);
 
       coin::join(&mut fees_in, coin::split(base_in, standard_fee_amount + stability_fee_amount, ctx));
     };
@@ -531,7 +537,7 @@ module su::vault {
     fees_in
   }
 
-  fun redeem_fee(
+  fun redeem_f_coin_fee(
     fees: Fees,
     base_out: &mut Coin<I_SUI>, 
     max_base_out_before_stability_mode: u64, 
@@ -541,9 +547,12 @@ module su::vault {
     let fees_in = coin::zero(ctx);
 
     // charge high fees
-    if (max_base_out_before_stability_mode >= base_out_value) {
-      let fee_amount = compute_fee(base_out_value, fees.stability_redeem);
+    if (max_base_out_before_stability_mode == 0) {
+      let fee_amount = compute_fee(base_out_value, fees.standard_redeem);
       coin::join(&mut fees_in, coin::split(base_out, fee_amount, ctx));
+    } else if (max_base_out_before_stability_mode >= base_out_value) {
+      let fee_amount = compute_fee(base_out_value, fees.stability_mint);
+      coin::join(&mut fees_in, coin::split(base_out, fee_amount, ctx));      
     } else {
       let stability_fee_amount = compute_fee(max_base_out_before_stability_mode, fees.stability_redeem);
       let standard_fee_amount = compute_fee(base_out_value - max_base_out_before_stability_mode,fees.standard_redeem);
