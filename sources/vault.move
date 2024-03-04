@@ -413,16 +413,27 @@ module su::vault {
   public fun max_redeemable_f_coin_for_rebalance_mode(
     self: &Vault,
     treasury: &mut Treasury,
-    oracle_price: Price,     
+    base_price: u64    
   ): (u64, u64) {
-    let base_price = destroy_price(self, oracle_price);
-
     treasury::max_redeemable_f_coin(
       treasury, 
       base_price, 
       self.rebalance_collateral_ratio
     ) 
   }  
+
+  public fun price(oracle_price: &Price): u64 {
+    let scaled_price = oracle::price(oracle_price);
+    let decimals = oracle::decimals(oracle_price);
+
+    if (decimals >= PRECISION_DECIMALS) {
+      let factor = pow(10, decimals - PRECISION_DECIMALS);
+      (scaled_price / (factor as u256) as u64)
+    } else {
+      let factor = pow(10, PRECISION_DECIMALS - decimals);
+      ((scaled_price * (factor as u256)) as u64)
+    }
+  }
 
   // === Public-Friend Functions ===
 
@@ -557,6 +568,8 @@ module su::vault {
       stability_fee_amount + standard_fee_amount
     };
 
+    coin::join(&mut fees_in, coin::split(base_out, fee_amount, ctx));
+
     fees_in
   }  
 
@@ -580,6 +593,8 @@ module su::vault {
 
       stability_fee_amount + standard_fee_amount
     };
+
+    coin::join(&mut fees_in, coin::split(base_out, fee_amount, ctx));
 
     fees_in
   }    

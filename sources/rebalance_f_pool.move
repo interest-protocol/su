@@ -23,8 +23,8 @@ module su::rebalance_f_pool {
   
   use su::f_sui::F_SUI;
   use su::i_sui::I_SUI;
+  use su::treasury::Treasury;
   use su::vault::{Self, Vault};
-  use su::treasury::{Self, Treasury};
 
   // === Friends ===
 
@@ -37,7 +37,7 @@ module su::rebalance_f_pool {
   const ENotEnoughFBalance: u64 = 2;
   const ENotEnoughBaseBalance: u64 = 3;
   const ENotEnoughRewardBalance: u64 = 4;
-  const ECanOnlyLiquidateOnRebalanceMode: u64 = 5;
+  const ECollateralRatioIsTooHigh: u64 = 5;
 
   // === Constants ===
 
@@ -67,7 +67,7 @@ module su::rebalance_f_pool {
     initial_f_balance: u64,
     final_f_balance: u64,
     base_balance: u64,
-    accrued_rewards_per_share_map: VecMap<TypeName, u256>,
+    accrued_rewards_per_share_map: VecMap<TypeName, PoolReward>,
   }
 
   struct Account has key, store {
@@ -206,16 +206,43 @@ module su::rebalance_f_pool {
     self: &mut RebalancePool,
     vault: &Vault,
     treasury: &mut Treasury,
-    c: &Clock,
-    f_coin_in: Coin<F_SUI>,
+    clock: &Clock,
     oracle_price: Price,
-    min_base_amount: u64,
     ctx: &mut TxContext        
   ) {
+    let (_, max_base_out_before_rebalance_mode) = vault::max_redeemable_f_coin_for_rebalance_mode(vault, treasury, vault::price(&oracle_price));
 
-    let (_, max_base_out_before_rebalance_mode) = vault::max_redeemable_f_coin_for_rebalance_mode(vault, treasury, oracle_price);
+    assert!(max_base_out_before_rebalance_mode != 0, ECollateralRatioIsTooHigh);
 
-    abort 0
+    update_pool_rewards(self, clock);
+
+    let initial_f_balance = balance::value(&self.f_balance);
+    let accrued_rewards_per_share_map = self.rewards_map;
+
+    let f_coin_to_redeem = coin::take(&mut self.f_balance, max_base_out_before_rebalance_mode, ctx);
+
+    let base_coin = vault::redeem_f_coin(
+      vault,
+      treasury,
+      clock, 
+      f_coin_to_redeem,
+      oracle_price,
+      0,
+      ctx
+    );
+
+    let base_balance = coin::value(&base_coin);
+
+    balance::join(&mut self.base_balance, coin::into_balance(base_coin));
+
+    let snapshot = EpochSnapshot {
+      initial_f_balance,
+      final_f_balance: initial_f_balance - balance::value(&self.f_balance),
+      base_balance,
+      accrued_rewards_per_share_map
+    };
+
+    table_vec::push_back(&mut self.epochs, snapshot);
   }
 
   // === Public-View Functions ===
@@ -282,9 +309,9 @@ module su::rebalance_f_pool {
 
         let reward_type_name = vector::borrow(rewards_vector, j);
 
-        let accrued_rewards_per_share = *vec_map::get(&snapshot.accrued_rewards_per_share_map, reward_type_name);
+        let pool_rewards = *vec_map::get(&snapshot.accrued_rewards_per_share_map, reward_type_name);
 
-        update_account_rewards(account, reward_type_name, accrued_rewards_per_share);
+        update_account_rewards(account, reward_type_name, pool_rewards.accrued_rewards_per_share);
 
         j = j + 1;
       };

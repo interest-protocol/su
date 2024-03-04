@@ -1,8 +1,6 @@
 module su::su_state {
   // === Imports ===
 
-  use std::debug::print;
-
   use suitears::math64::min;
   use suitears::int::{Self, Int};
   use suitears::math256::mul_div_down;
