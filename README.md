@@ -30,7 +30,7 @@ Su is a DeFi application designed to mint and burn coins backed by Sui with diff
 - **admin:** Contains the admin-gated functions
 - **rebalance_f_pool:** A pool that redeems F_SUI to increase the CR.
 - **treasury:** Controls minting/redeeming, fees logic, and balances
-- **vault:** The frontend API to interact with Su.
+- **vault:** The public API to interact with Su.
 
 ### TODOS
 
