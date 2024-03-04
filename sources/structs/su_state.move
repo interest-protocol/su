@@ -100,7 +100,7 @@ module su::su_state {
 
     let new_collateral_ratio = (new_collateral_ratio as u256);
 
-    let f_value = new_collateral_ratio * self.f_supply * PRECISION;
+    let f_value = new_collateral_ratio * self.f_supply * self.f_nav;
 
     if (f_value >= self.base_value) return (0, 0);
 
@@ -109,7 +109,7 @@ module su::su_state {
 
     (
       (delta / (self.base_nav * new_collateral_ratio) as u64),
-      (delta / (PRECISION * new_collateral_ratio) as u64)
+      (delta / (self.f_nav * new_collateral_ratio) as u64)
     )
   }
 
