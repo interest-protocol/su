@@ -219,7 +219,11 @@ module su::rebalance_f_pool {
     let initial_f_balance = balance::value(&self.f_balance);
     let accrued_rewards_per_share_map = self.rewards_map;
 
-    let f_coin_to_redeem = coin::take(&mut self.f_balance, max_base_out_before_rebalance_mode, ctx);
+    let f_coin_to_redeem = coin::take(
+      &mut self.f_balance, 
+      math64::min(max_base_out_before_rebalance_mode, initial_f_balance), 
+      ctx
+    );
 
     let base_coin = vault::redeem_f_coin(
       vault,
