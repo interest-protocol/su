@@ -175,6 +175,62 @@ module su::treasury {
     su_state::collateral_ratio(su_state)
   }
 
+  public(friend) fun base_supply(self: &mut Treasury, base_price: u64): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    let su_state = compute_su_state(state, base_price);
+
+    su_state::base_supply(su_state)
+  }
+
+  public(friend) fun base_nav(self: &mut Treasury, base_price: u64): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    let su_state = compute_su_state(state, base_price);
+
+    su_state::base_supply(su_state)
+  }
+
+  public(friend) fun f_multiple(self: &mut Treasury, base_price: u64): Int {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    let su_state = compute_su_state(state, base_price);
+
+    su_state::f_multiple(su_state)
+  }
+
+  public(friend) fun f_supply(self: &mut Treasury, base_price: u64): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    let su_state = compute_su_state(state, base_price);
+
+    su_state::f_supply(su_state)
+  }
+
+  public(friend) fun f_nav(self: &mut Treasury, base_price: u64): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    let su_state = compute_su_state(state, base_price);
+
+    su_state::f_nav(su_state)
+  }
+
+  public(friend) fun x_supply(self: &mut Treasury, base_price: u64): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    let su_state = compute_su_state(state, base_price);
+
+    su_state::x_supply(su_state)
+  }
+
+  public(friend) fun x_nav(self: &mut Treasury, base_price: u64): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+
+    let su_state = compute_su_state(state, base_price);
+
+    su_state::x_nav(su_state)
+  }
+
   public (friend) fun leverage_ratio(self: &mut Treasury, c: &Clock): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
     ema::ema_value(state.ema, c)
