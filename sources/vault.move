@@ -13,6 +13,7 @@ module su::vault {
   use su::i_sui::I_SUI;
   use su::treasury::{Self, Treasury};
 
+  use suitears::int::Int;
   use suitears::oracle::{Self, Price};
   use suitears::math64::{min, mul_div_up};
 
@@ -421,6 +422,34 @@ module su::vault {
       self.rebalance_collateral_ratio
     ) 
   }  
+
+  public fun collateral_ratio(treasury: &mut Treasury, base_price: u64): u64 {
+   treasury::collateral_ratio(treasury, base_price)
+  }  
+
+  public fun f_multiple(treasury: &mut Treasury, base_price: u64): Int {
+    treasury::f_multiple(treasury, base_price)
+  }
+
+  public fun f_supply(treasury: &mut Treasury): u64 {
+    treasury::f_supply(treasury)
+  }
+
+  public fun f_nav(treasury: &mut Treasury, base_price: u64): u64 {
+    treasury::f_nav(treasury, base_price)
+  }
+
+  public fun x_supply(treasury: &mut Treasury): u64 {
+    treasury::x_supply(treasury)
+  }
+
+  public fun x_nav(treasury: &mut Treasury, base_price: u64): u64 {
+    treasury::x_nav(treasury, base_price)
+  }
+
+  public fun leverage_ratio(treasury: &mut Treasury, c: &Clock): u64 {
+    treasury::leverage_ratio(treasury, c)
+  } 
 
   public fun price(oracle_price: &Price): u64 {
     let scaled_price = oracle::price(oracle_price);
