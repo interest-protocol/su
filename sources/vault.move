@@ -633,17 +633,4 @@ module su::vault {
   }
 
   // === Test Functions ===  
-
-
-
-  // ! ADD temporary Faucet functions for testnet deployment
-
-  public fun mint<CoinType: drop>(
-    treasury: &mut Treasury,
-    amount: u64,
-    ctx: &mut TxContext
-  ): Coin<CoinType> { 
-    let cap_mut = treasury::treasury_cap_mut(treasury);
-    coin::mint(cap_mut, amount, ctx)
-  }
 }

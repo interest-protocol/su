@@ -1,16 +1,23 @@
+// ! This is a test net only coin
 #[allow(lint(share_owned))]
 module su::i_sui {
   // === Imports ===
 
   use std::option;
 
-  use sui::coin::create_currency;
-  use sui::tx_context::{sender, TxContext};
-  use sui::transfer::{public_transfer, public_share_object};
+  use sui::object::{Self, UID};
+  use sui::tx_context::TxContext;
+  use sui::transfer::{public_share_object, share_object};
+  use sui::coin::{Self, create_currency, Coin, TreasuryCap};
 
   // === Structs ===
   
   struct I_SUI has drop {}
+
+  struct Treasury has key {
+    id: UID,
+    cap: TreasuryCap<I_SUI>
+  }
 
   // === Public-Mutative Functions ===
 
@@ -26,7 +33,10 @@ module su::i_sui {
     );
 
     public_share_object(coin_metadata);
-    public_transfer(treasury_cap, sender(ctx));
+    share_object(Treasury {
+      id: object::new(ctx),
+      cap: treasury_cap
+    });
   }
 
   // === Test Functions ===  
@@ -35,4 +45,12 @@ module su::i_sui {
   public fun init_for_testing(ctx: &mut TxContext) {
     init(I_SUI {}, ctx);
   }
+
+  public fun mint(
+    treasury: &mut Treasury,
+    amount: u64,
+    ctx: &mut TxContext
+  ): Coin<I_SUI> { 
+    coin::mint(&mut treasury.cap, amount, ctx)
+  }  
 }
