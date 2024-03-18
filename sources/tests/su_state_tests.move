@@ -4,6 +4,7 @@ module su::su_state_tests {
   use sui::test_utils::assert_eq;
 
   use suitears::int;
+  use suitears::math64;
 
   use su::su_state::{Self, SuState};
 
@@ -123,7 +124,51 @@ module su::su_state_tests {
     // CR is very unhealthy, should not be able to redeem X_COINS
     assert_eq(max_base_out_before_rebalance, 0);
     assert_eq(max_f_coin_burnt_before_rebalance, 0);       
-  }  
+  }
+
+  #[test]  
+  fun mint () {
+    let state = make_high_cr_state();
+
+    let base_in = 20 * PRECISION;
+
+    let (f_coin_value, x_coin_value) = su_state::mint(state, 20 * PRECISION);
+
+    let expected_f_coin_value = math64::mul_div_down(su_state::f_supply(state),base_in, su_state::base_supply(state));
+    let expected_x_coin_value = math64::mul_div_down(su_state::x_supply(state),base_in, su_state::base_supply(state));
+
+    assert_eq(f_coin_value, expected_f_coin_value);
+    assert_eq(x_coin_value, expected_x_coin_value);
+  }
+
+  #[test]
+  fun mint_f_coin() {
+    let state = make_high_cr_state();
+
+    let base_in = 20 * PRECISION;
+
+    let f_coin_value = su_state::mint_f_coin(state, base_in);
+
+    let expected_f_coin_value = math64::mul_div_down(base_in, su_state::base_nav(state), su_state::f_nav(state));
+
+    assert_eq(f_coin_value, expected_f_coin_value);
+  }
+
+  #[test]
+  fun mint_x_coin() {
+    let state = make_high_cr_state();
+
+    let base_in = 20 * PRECISION;
+
+    let x_coin_value = su_state::mint_x_coin(state, base_in);    
+
+    let expected_x_coin_value = ((base_in as u256) * (su_state::base_nav(state) as u256) * (su_state::x_supply(state) as u256)) 
+      / ((su_state::base_supply(state) as u256) * 
+        (su_state::base_nav(state) as u256) - 
+        ((su_state::f_supply(state) as u256) * (su_state::f_nav(state) as u256))) ;
+
+    assert_eq(x_coin_value, (expected_x_coin_value as u64));    
+  }
 
   // 9x CR
   fun make_high_cr_state(): SuState {
