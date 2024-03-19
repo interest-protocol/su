@@ -170,6 +170,66 @@ module su::su_state_tests {
     assert_eq(x_coin_value, (expected_x_coin_value as u64));    
   }
 
+  #[test]
+  fun redeem() {
+
+    let base_supply = 100 * PRECISION;
+    let base_nav = 2 * PRECISION;
+    let f_multiple = int::from_u64(11 * PRECISION / 10);
+    let f_supply = 20 * PRECISION;
+    let f_nav = 11 * PRECISION / 10;
+    let x_supply = 80 * PRECISION;
+    let x_nav = 2225 * PRECISION / 1000;
+    let f_coin_in = 10 * PRECISION;
+
+    // First branch when x_supply is zero
+    {
+
+      let x_supply = 0;
+
+      let state = su_state::new(
+        base_supply,
+        base_nav,
+        f_multiple,
+        f_supply,
+        f_nav,
+        x_supply,
+        x_nav,
+      );
+
+      let base_value_no_x_coin = su_state::redeem(state, f_coin_in, 0);
+      let expected_base_value_no_x_coin = math64::mul_div_down(f_coin_in, su_state::f_nav(state), su_state::base_nav(state));
+
+      assert_eq(base_value_no_x_coin, expected_base_value_no_x_coin);
+
+      let base_value_no_f_coin = su_state::redeem(state, 0, f_coin_in);
+      let expected_base_value_no_f_coin = math64::mul_div_down(0, su_state::f_nav(state), su_state::base_nav(state));
+
+      assert_eq(base_value_no_f_coin, expected_base_value_no_f_coin);      
+    };
+
+    let state = su_state::new(
+      base_supply,
+      base_nav,
+      f_multiple,
+      f_supply,
+      f_nav,
+      x_supply,
+      x_nav,
+    );
+
+    // First branch when x_supply is NOT zero
+
+    let base_value_no_x_coin = su_state::redeem(state, f_coin_in, 0);
+    let expected_base_value_no_x_coin = math64::mul_div_down(f_coin_in, su_state::f_nav(state), su_state::base_nav(state));
+    assert_eq(base_value_no_x_coin, expected_base_value_no_x_coin);
+
+    let base_value_no_f_coin = su_state::redeem(state, 0, f_coin_in);
+    let x_val = ((base_supply  as u256 ) * (base_nav as u256)) - ((f_supply as u256) * (f_nav as u256));
+    let expected_base_value_no_f_coin = ((x_val as u256) * (f_coin_in as u256) / (x_supply as u256)) / (base_nav as u256);
+    assert_eq(base_value_no_f_coin, (expected_base_value_no_f_coin as u64));    
+  }
+
   // 9x CR
   fun make_high_cr_state(): SuState {
     let base_supply = 100 * PRECISION;
