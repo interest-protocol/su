@@ -74,9 +74,9 @@ module su::vault {
     base_balance_cap: u64,
     ctx: &mut TxContext
   ) { 
-    let (oracle_id, scaled_price, _, _) = oracle::destroy_price(genesis_price);
+    let (oracle_id, scaled_price, decimals, _) = oracle::destroy_price(genesis_price);
 
-    let price = (scaled_price / (PRECISION as u256) as u64);
+    let price = normalize_price(scaled_price, decimals);
 
     treasury::share_genesis_state(
       f_treasury_cap, 
@@ -514,13 +514,17 @@ module su::vault {
     let (oracle_id, scaled_price, decimals, _) = oracle::destroy_price(oracle_price);
     assert!(self.oracle_id_address == object::id_to_address(&oracle_id), EInvalidOracle);
 
+    normalize_price(scaled_price, decimals)
+  }
+
+  fun normalize_price(scaled_price: u256, decimals: u8): u64 {
     if (decimals >= PRECISION_DECIMALS) {
       let factor = pow(10, decimals - PRECISION_DECIMALS);
       (scaled_price / (factor as u256) as u64)
     } else {
       let factor = pow(10, PRECISION_DECIMALS - decimals);
       ((scaled_price * (factor as u256)) as u64)
-    }
+    }    
   }
 
   fun mint_f_coin_fee(

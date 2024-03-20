@@ -463,6 +463,8 @@ module su::treasury {
   }
 
   fun update_ema_leverage_ratio(state: &mut StateV1, c: &Clock, su_state: SuState) {
+    if (su_state::base_supply(su_state) == 0) return;
+    
     let genesis_price = int::from_u64(state.genesis_price);
     let base_nav = int::from_u64(su_state::base_nav(su_state));
     let precision = int::from_u64(PRECISION);

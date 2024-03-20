@@ -15,3 +15,7 @@ Su = { local = "../contracts" }
 su_tests = "0x0"
 std = "0x1"
 sui = "0x2"
+alice = "0xa11ce"
+bob = "0xb0b"
+carl = "0xca41"
+oracle = "0x8"
