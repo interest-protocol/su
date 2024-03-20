@@ -1,19 +1,24 @@
 #[test_only]
-module su::su_state_tests {
+module su_tests::su_state_tests {
   
   use sui::test_utils::assert_eq;
 
   use suitears::int;
   use suitears::math64;
+  use suitears::math256;
 
   use su::su_state::{Self, SuState};
+
+  use fun math64::mul_div_down as u64.mul_div_down;
+  use fun math256::mul as u256.mul;
+  use fun math256::div_down as u256.div_down;
+  use fun math256::sub as u256.sub;
 
   const PRECISION: u64 = 1_000_000_000;
   const REBALANCE_COLLATERAL_RATIO: u64 = 1_600_000_000;
 
   #[test]
   fun view_functions() {
-
     let base_supply = 100 * PRECISION;
     let base_nav = 2 * PRECISION;
     let f_multiple = int::from_u64(11 * PRECISION / 10);
@@ -32,14 +37,14 @@ module su::su_state_tests {
       x_nav,
     );
 
-
-    assert_eq(su_state::base_supply(state), base_supply);
-    assert_eq(su_state::base_nav(state), base_nav);
-    assert_eq(su_state::f_multiple(state), f_multiple);
-    assert_eq(su_state::f_supply(state), f_supply);
-    assert_eq(su_state::f_nav(state), f_nav);
-    assert_eq(su_state::x_supply(state), x_supply);
-    assert_eq(su_state::x_nav(state), x_nav);
+    // Sui Move 2024
+    assert_eq(state.base_supply(), base_supply);
+    assert_eq(state.base_nav(), base_nav);
+    assert_eq(state.f_multiple(), f_multiple);
+    assert_eq(state.f_supply(), f_supply);
+    assert_eq(state.f_nav(), f_nav);
+    assert_eq(state.x_supply(), x_supply);
+    assert_eq(state.x_nav(), x_nav);
   }
 
   #[test]
@@ -47,14 +52,14 @@ module su::su_state_tests {
     let state = make_high_cr_state();
 
     // 200 / 22 => 9.09x
-    assert_eq(su_state::collateral_ratio(state), 9090909090);  
+    assert_eq(state.collateral_ratio(), 9090909090);  
   }
 
   #[test]
   fun max_mintable_f_coin() {
     let state = make_high_cr_state();
 
-    let (max_base_in_before_rebalance, max_f_coin_minted_before_rebalance ) = su_state::max_mintable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
+    let (max_base_in_before_rebalance, max_f_coin_minted_before_rebalance ) = state.max_mintable_f_coin(REBALANCE_COLLATERAL_RATIO);
     
     // 9x CR => we can mint a lot of F_COIN
     assert_eq(max_base_in_before_rebalance, 137333333333);
@@ -62,7 +67,7 @@ module su::su_state_tests {
 
     let state = make_low_cr_state();
 
-    let (max_base_in_before_rebalance, max_f_coin_minted_before_rebalance ) = su_state::max_mintable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
+    let (max_base_in_before_rebalance, max_f_coin_minted_before_rebalance ) = state.max_mintable_f_coin(REBALANCE_COLLATERAL_RATIO);
 
     // CR <= 1.6X can NOT mint any more F_COIN
     assert_eq(max_base_in_before_rebalance, 0);
@@ -73,7 +78,7 @@ module su::su_state_tests {
   fun max_mintable_x_coin() {
     let state = make_high_cr_state();
 
-    let (max_base_in_before_rebalance,max_x_coin_minted_before_rebalance ) = su_state::max_mintable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
+    let (max_base_in_before_rebalance,max_x_coin_minted_before_rebalance ) = state.max_mintable_x_coin(REBALANCE_COLLATERAL_RATIO);
 
     // Have a CR >= 1.6x can mint as much X_COIN as we wish
     assert_eq(max_base_in_before_rebalance, 0);
@@ -81,7 +86,7 @@ module su::su_state_tests {
 
     let state = make_low_cr_state();
 
-    let (max_base_in_before_rebalance,max_x_coin_minted_before_rebalance ) = su_state::max_mintable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
+    let (max_base_in_before_rebalance,max_x_coin_minted_before_rebalance ) = state.max_mintable_x_coin( REBALANCE_COLLATERAL_RATIO);
 
     // Have a CR < 1.6x there is an incentive to mint X Coin
     assert_eq(max_base_in_before_rebalance, 20 * PRECISION);
@@ -92,7 +97,7 @@ module su::su_state_tests {
   fun max_redeemable_f_coin() {
     let state = make_high_cr_state();
 
-    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = su_state::max_redeemable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
+    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = state.max_redeemable_f_coin(REBALANCE_COLLATERAL_RATIO);
 
     // CR is very healthy, no bonuses. 
     assert_eq(max_base_out_before_rebalance, 0);
@@ -100,7 +105,7 @@ module su::su_state_tests {
 
     let state = make_low_cr_state();
 
-    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = su_state::max_redeemable_f_coin(state, REBALANCE_COLLATERAL_RATIO);
+    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = state.max_redeemable_f_coin(REBALANCE_COLLATERAL_RATIO);
 
     // CR is very unhealthy, we have a bonus when minting F_COIN
     assert_eq(max_base_out_before_rebalance, 22222222222);
@@ -111,7 +116,7 @@ module su::su_state_tests {
   fun max_redeemable_x_coin() {
     let state = make_high_cr_state();
 
-    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = su_state::max_redeemable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
+    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = state.max_redeemable_x_coin(REBALANCE_COLLATERAL_RATIO);
 
     // CR is very healthy, can mint X_COIN
     assert_eq(max_base_out_before_rebalance, 74067415730);
@@ -119,7 +124,7 @@ module su::su_state_tests {
 
     let state = make_low_cr_state();
 
-    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = su_state::max_redeemable_x_coin(state, REBALANCE_COLLATERAL_RATIO);
+    let (max_base_out_before_rebalance, max_f_coin_burnt_before_rebalance ) = state.max_redeemable_x_coin(REBALANCE_COLLATERAL_RATIO);
 
     // CR is very unhealthy, should not be able to redeem X_COINS
     assert_eq(max_base_out_before_rebalance, 0);
@@ -132,10 +137,10 @@ module su::su_state_tests {
 
     let base_in = 20 * PRECISION;
 
-    let (f_coin_value, x_coin_value) = su_state::mint(state, 20 * PRECISION);
+    let (f_coin_value, x_coin_value) = state.mint(20 * PRECISION);
 
-    let expected_f_coin_value = math64::mul_div_down(su_state::f_supply(state),base_in, su_state::base_supply(state));
-    let expected_x_coin_value = math64::mul_div_down(su_state::x_supply(state),base_in, su_state::base_supply(state));
+    let expected_f_coin_value = state.f_supply().mul_div_down(base_in, state.base_supply());
+    let expected_x_coin_value = state.x_supply().mul_div_down(base_in, state.base_supply());
 
     assert_eq(f_coin_value, expected_f_coin_value);
     assert_eq(x_coin_value, expected_x_coin_value);
@@ -147,9 +152,9 @@ module su::su_state_tests {
 
     let base_in = 20 * PRECISION;
 
-    let f_coin_value = su_state::mint_f_coin(state, base_in);
+    let f_coin_value = state.mint_f_coin(base_in);
 
-    let expected_f_coin_value = math64::mul_div_down(base_in, su_state::base_nav(state), su_state::f_nav(state));
+    let expected_f_coin_value = base_in.mul_div_down(state.base_nav(), state.f_nav());
 
     assert_eq(f_coin_value, expected_f_coin_value);
   }
@@ -160,19 +165,23 @@ module su::su_state_tests {
 
     let base_in = 20 * PRECISION;
 
-    let x_coin_value = su_state::mint_x_coin(state, base_in);    
+    let x_coin_value = state.mint_x_coin(base_in);    
 
-    let expected_x_coin_value = ((base_in as u256) * (su_state::base_nav(state) as u256) * (su_state::x_supply(state) as u256)) 
-      / ((su_state::base_supply(state) as u256) * 
-        (su_state::base_nav(state) as u256) - 
-        ((su_state::f_supply(state) as u256) * (su_state::f_nav(state) as u256))) ;
+    let expected_x_coin_value = 
+      (base_in as u256)
+      .mul((state.base_nav() as u256))
+      .mul((state.x_supply() as u256))
+      .div_down(
+        (state.base_supply() as u256)
+        .mul((state.base_nav() as u256))
+        .sub((state.f_supply() as u256).mul((state.f_nav() as u256)))
+      );
 
     assert_eq(x_coin_value, (expected_x_coin_value as u64));    
   }
 
   #[test]
   fun redeem() {
-
     let base_supply = 100 * PRECISION;
     let base_nav = 2 * PRECISION;
     let f_multiple = int::from_u64(11 * PRECISION / 10);
@@ -197,13 +206,13 @@ module su::su_state_tests {
         x_nav,
       );
 
-      let base_value_no_x_coin = su_state::redeem(state, f_coin_in, 0);
-      let expected_base_value_no_x_coin = math64::mul_div_down(f_coin_in, su_state::f_nav(state), su_state::base_nav(state));
+      let base_value_no_x_coin = state.redeem(f_coin_in, 0);
+      let expected_base_value_no_x_coin = f_coin_in.mul_div_down(state.f_nav(), state.base_nav());
 
       assert_eq(base_value_no_x_coin, expected_base_value_no_x_coin);
 
-      let base_value_no_f_coin = su_state::redeem(state, 0, f_coin_in);
-      let expected_base_value_no_f_coin = math64::mul_div_down(0, su_state::f_nav(state), su_state::base_nav(state));
+      let base_value_no_f_coin = state.redeem(0, f_coin_in);
+      let expected_base_value_no_f_coin = state.f_nav().mul_div_down(0, state.base_nav());
 
       assert_eq(base_value_no_f_coin, expected_base_value_no_f_coin);      
     };
@@ -220,21 +229,56 @@ module su::su_state_tests {
 
     // First branch when x_supply is NOT zero
 
-    let base_value_no_x_coin = su_state::redeem(state, f_coin_in, 0);
-    let expected_base_value_no_x_coin = math64::mul_div_down(f_coin_in, su_state::f_nav(state), su_state::base_nav(state));
+    let base_value_no_x_coin = state.redeem(f_coin_in, 0);
+    let expected_base_value_no_x_coin = f_coin_in.mul_div_down(state.f_nav(), state.base_nav());
     assert_eq(base_value_no_x_coin, expected_base_value_no_x_coin);
 
     let base_value_no_f_coin = su_state::redeem(state, 0, f_coin_in);
-    let x_val = ((base_supply  as u256 ) * (base_nav as u256)) - ((f_supply as u256) * (f_nav as u256));
-    let expected_base_value_no_f_coin = ((x_val as u256) * (f_coin_in as u256) / (x_supply as u256)) / (base_nav as u256);
+    let x_val = (base_supply as u256)
+      .mul((base_nav as u256))
+      .sub(
+        (f_supply as u256)
+        .mul((f_nav as u256))
+      );
+
+    let expected_base_value_no_f_coin = (x_val as u256)
+      .mul((f_coin_in as u256))
+      .div_down((x_supply as u256))
+      .div_down((base_nav as u256));
+
     assert_eq(base_value_no_f_coin, (expected_base_value_no_f_coin as u64));    
+  }
+
+  #[test]
+  fun leverage_ratio() {
+    let beta = 100_000_000;
+    let state = make_low_cr_state();
+    let earning_ratio = int::from_u256(100_000_000 * 2);
+
+    let leverage_ratio = state.leverage_ratio(beta, earning_ratio);
+
+    let rho = (state.f_supply() as u256)
+      .mul((state.f_nav() as u256))
+      .mul((PRECISION as u256))
+      .div_down(
+        (state.base_supply() as u256).mul((state.base_nav() as u256))
+      );
+
+    let x = rho
+      .mul((beta as u256))
+      .mul(int::to_u256(int::add(int::from_u64(PRECISION), earning_ratio)))
+      .div_down((PRECISION as u256).mul((PRECISION as u256)));
+
+    let expected_leveraged_ratio = (PRECISION as u256).sub(x).mul((PRECISION as u256)).div_down((PRECISION as u256).sub(rho));
+
+    assert_eq(leverage_ratio, (expected_leveraged_ratio as u64));
   }
 
   // 9x CR
   fun make_high_cr_state(): SuState {
     let base_supply = 100 * PRECISION;
     let base_nav = 2 * PRECISION;
-    let f_multiple =int::from_u64(11 * PRECISION / 10);
+    let f_multiple = int::from_u64(11 * PRECISION / 10);
     let f_supply = 20 * PRECISION;
     let f_nav = 11 * PRECISION / 10;
     let x_supply = 80 * PRECISION;

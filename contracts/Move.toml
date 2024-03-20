@@ -1,5 +1,5 @@
 [package]
-name = "su"
+name = "Su"
 version = "1.0.0"
 license = "MIT"
 authors = ["Jose Cerqueira (jose@interestprotocol.com)"]
@@ -13,8 +13,3 @@ SuiTears = { git = "https://github.com/interest-protocol/suitears.git" , subdir 
 su = "0x0"
 std = "0x1"
 sui = "0x2"
-
-# [dev-addresses]
-# owner = "0xdEaD"
-# alice = "0xA11CE"
-# bob =  "0xB0B"

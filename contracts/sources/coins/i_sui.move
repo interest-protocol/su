@@ -1,5 +1,4 @@
 // ! This is a test net only coin
-#[allow(lint(share_owned))]
 module su::i_sui {
   // === Imports ===
 

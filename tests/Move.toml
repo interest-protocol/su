@@ -1,0 +1,17 @@
+[package]
+name = "SuTests"
+version = "1.0.0"
+edition = "2024.alpha"
+license = "MIT"
+authors = ["Jose Cerqueira (jose@interestprotocol.com)"]
+
+[dependencies]
+MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "framework/testnet"  }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
+SuiTears = { git = "https://github.com/interest-protocol/suitears.git" , subdir = "contracts", rev = "testnet" }
+Su = { local = "../contracts" }
+
+[addresses]
+su_tests = "0x0"
+std = "0x1"
+sui = "0x2"
