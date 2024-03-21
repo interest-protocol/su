@@ -9,12 +9,12 @@ module su_tests::su_state_tests {
 
   use su::su_state::{Self, SuState};
 
+  use su_tests::assert_state;
+
   use fun math64::mul_div_down as u64.mul_div_down;
   use fun math256::mul as u256.mul;
   use fun math256::div_down as u256.div_down;
   use fun math256::sub as u256.sub;
-
-  use su_tests::assert_state;
 
   const PRECISION: u64 = 1_000_000_000;
   const REBALANCE_COLLATERAL_RATIO: u64 = 1_600_000_000;
