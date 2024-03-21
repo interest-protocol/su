@@ -14,6 +14,8 @@ module su_tests::su_state_tests {
   use fun math256::div_down as u256.div_down;
   use fun math256::sub as u256.sub;
 
+  use su_tests::assert_state;
+
   const PRECISION: u64 = 1_000_000_000;
   const REBALANCE_COLLATERAL_RATIO: u64 = 1_600_000_000;
 
@@ -37,14 +39,17 @@ module su_tests::su_state_tests {
       x_nav,
     );
 
-    // Sui Move 2024
-    assert_eq(state.base_supply(), base_supply);
-    assert_eq(state.base_nav(), base_nav);
-    assert_eq(state.f_multiple(), f_multiple);
-    assert_eq(state.f_supply(), f_supply);
-    assert_eq(state.f_nav(), f_nav);
-    assert_eq(state.x_supply(), x_supply);
-    assert_eq(state.x_nav(), x_nav);
+    let assert = assert_state::new(state);
+
+    // Sui Move 2024 on Steroids
+    assert
+    .base_supply(base_supply)
+    .base_nav(base_nav)
+    .f_multiple(f_multiple)
+    .f_supply(f_supply)
+    .f_nav(f_nav)
+    .x_supply(x_supply)
+    .x_nav(x_nav);
   }
 
   #[test]
