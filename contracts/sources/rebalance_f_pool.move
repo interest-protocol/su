@@ -204,7 +204,7 @@ module su::rebalance_f_pool {
 
   public fun liquidate(
     self: &mut RebalancePool,
-    vault: &Vault,
+    vault: &mut Vault,
     treasury: &mut Treasury,
     clock: &Clock,
     oracle_price: Price,

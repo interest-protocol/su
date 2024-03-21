@@ -11,6 +11,7 @@ module su_tests::test_runner {
   use su::vault::{Self, Vault};
   use su::f_sui::{Self, F_SUI};
   use su::x_sui::{Self, X_SUI};
+  use su::su_state::{Self, SuState};
   use su::i_sui::{Self, I_SUI, Treasury as ISuiTreasury};
 
   use suitears::oracle::{Self, Price};
@@ -56,6 +57,28 @@ module su_tests::test_runner {
     runner
   }
 
+  public fun state(self: &TestRunner): SuState {
+    let vault = test_scenario::take_shared<Vault>(&self.scenario);
+    let mut treasury = test_scenario::take_shared<Treasury>(&self.scenario);
+
+    let treasury_mut = &mut treasury;
+
+    let state = su_state::new(
+      vault::base_supply(treasury_mut),
+      vault::base_nav(&vault, treasury_mut),
+      vault::f_multiple(&vault, treasury_mut),
+      vault::f_supply(treasury_mut),
+      vault::f_nav(&vault, treasury_mut),
+      vault::x_supply(treasury_mut),
+      vault::x_nav(&vault, treasury_mut)
+    );
+
+    test_scenario::return_shared(treasury);
+    test_scenario::return_shared(vault);
+
+    state
+  }
+
   public fun next_tx(self: &mut TestRunner, sender: address): &mut TestRunner {
     test_scenario::next_tx(&mut self.scenario, sender);
     self
@@ -89,13 +112,13 @@ module su_tests::test_runner {
     min_f_coin_amount: u64, 
     min_x_coin_amount: u64
   ): (Coin<F_SUI>, Coin<X_SUI>) {
-    let vault = test_scenario::take_shared<Vault>(&self.scenario);
+    let mut vault = test_scenario::take_shared<Vault>(&self.scenario);
     let mut treasury = test_scenario::take_shared<Treasury>(&self.scenario);
 
     let i_sui = mint_i_sui(self, base_in);
 
     let (f_sui, x_sui) = vault::mint_both(
-      &vault,
+      &mut vault,
       &mut treasury,
       &self.clock,
       i_sui,

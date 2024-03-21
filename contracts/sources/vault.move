@@ -53,6 +53,7 @@ module su::vault {
     oracle_id_address: address,
     x_fees: Fees,
     f_fees: Fees,
+    last_price: u64,
     stability_collateral_ratio: u64,
     rebalance_collateral_ratio: u64
   }
@@ -105,6 +106,7 @@ module su::vault {
       id: object::new(ctx),
       f_fees,
       x_fees,
+      last_price: price,
       oracle_id_address: object::id_to_address(&oracle_id),
       stability_collateral_ratio: 2 * PRECISION, // 200% CR
       rebalance_collateral_ratio: 18 * PRECISION / 10, // 180 CR %
@@ -114,7 +116,7 @@ module su::vault {
   }
 
   public fun mint_both(
-    self: &Vault,
+    self: &mut Vault,
     treasury: &mut Treasury,
     c: &Clock,
     base_in: Coin<I_SUI>,
@@ -138,7 +140,7 @@ module su::vault {
   }
 
   public fun mint_f_coin(
-    self: &Vault,
+    self: &mut Vault,
     treasury: &mut Treasury,
     c: &Clock,
     base_in: Coin<I_SUI>,
@@ -182,7 +184,7 @@ module su::vault {
   }
 
   public fun mint_x_coin(
-    self: &Vault,
+    self: &mut Vault,
     treasury: &mut Treasury,
     c: &Clock,
     base_in: Coin<I_SUI>,
@@ -228,7 +230,7 @@ module su::vault {
   }
 
   public fun redeem_f_coin(
-    self: &Vault,
+    self: &mut Vault,
     treasury: &mut Treasury,
     c: &Clock,
     f_coin_in: Coin<F_SUI>,
@@ -285,7 +287,7 @@ module su::vault {
   }
 
   public fun redeem_x_coin(
-    self: &Vault,
+    self: &mut Vault,
     treasury: &mut Treasury,
     c: &Clock,
     x_coin_in: Coin<X_SUI>,
@@ -427,24 +429,32 @@ module su::vault {
    treasury::collateral_ratio(treasury, base_price)
   }  
 
-  public fun f_multiple(treasury: &mut Treasury, base_price: u64): Int {
-    treasury::f_multiple(treasury, base_price)
+  public fun base_supply(treasury: &mut Treasury): u64 {
+    treasury::f_supply(treasury)
+  }  
+
+  public fun base_nav(self: &Vault, treasury: &mut Treasury): u64 {
+    treasury::f_nav(treasury, self.last_price)
+  }  
+
+  public fun f_multiple(self: &Vault, treasury: &mut Treasury): Int {
+    treasury::f_multiple(treasury, self.last_price)
   }
 
   public fun f_supply(treasury: &mut Treasury): u64 {
     treasury::f_supply(treasury)
   }
 
-  public fun f_nav(treasury: &mut Treasury, base_price: u64): u64 {
-    treasury::f_nav(treasury, base_price)
+  public fun f_nav(self: &Vault, treasury: &mut Treasury): u64 {
+    treasury::f_nav(treasury, self.last_price)
   }
 
   public fun x_supply(treasury: &mut Treasury): u64 {
     treasury::x_supply(treasury)
   }
 
-  public fun x_nav(treasury: &mut Treasury, base_price: u64): u64 {
-    treasury::x_nav(treasury, base_price)
+  public fun x_nav(self: &Vault, treasury: &mut Treasury): u64 {
+    treasury::x_nav(treasury, self.last_price)
   }
 
   public fun leverage_ratio(treasury: &mut Treasury, c: &Clock): u64 {
@@ -462,6 +472,10 @@ module su::vault {
       let factor = pow(10, PRECISION_DECIMALS - decimals);
       ((scaled_price * (factor as u256)) as u64)
     }
+  }
+
+  public fun last_price(self: &Vault): u64 {
+    self.last_price
   }
 
   // === Public-Friend Functions ===
@@ -510,11 +524,15 @@ module su::vault {
 
   // === Private Functions ===
 
-  fun destroy_price(self: &Vault, oracle_price: Price): u64 {
+  fun destroy_price(self: &mut Vault, oracle_price: Price): u64 {
     let (oracle_id, scaled_price, decimals, _) = oracle::destroy_price(oracle_price);
     assert!(self.oracle_id_address == object::id_to_address(&oracle_id), EInvalidOracle);
 
-    normalize_price(scaled_price, decimals)
+    let price = normalize_price(scaled_price, decimals);
+
+    self.last_price = price;
+
+    price
   }
 
   fun normalize_price(scaled_price: u256, decimals: u8): u64 {
