@@ -4,7 +4,7 @@ module su_tests::test_runner {
   use sui::object;
   use sui::test_utils;
   use sui::clock::{Self, Clock};
-  use sui::coin::{Coin, TreasuryCap};
+  use sui::coin::{Self, Coin, TreasuryCap};
   use sui::test_scenario::{Self, Scenario, ctx};
 
   use su::treasury::Treasury;
@@ -113,6 +113,10 @@ module su_tests::test_runner {
 
   public fun end(self: TestRunner) {
     test_utils::destroy(self);
+  }
+
+  public fun burn_coin<T>(coin_in: Coin<T>, value: u64) {
+    test_utils::assert_eq(coin::burn_for_testing(coin_in), value);
   }
 
   fun new_price(oracle_price: u256): Price {
