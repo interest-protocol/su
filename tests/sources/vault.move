@@ -26,6 +26,6 @@ module su_tests::vault_tests {
     f_coin.assert_value(83500000000);
     x_coin.assert_value(83500000000);
 
-    test_runner::end(runner);
+    runner.end();
   }
 }
