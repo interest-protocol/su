@@ -1,6 +1,5 @@
 module su::su_state {
   // === Imports ===
-  use std::debug::print;
   use suitears::math64::min;
   use suitears::int::{Self, Int};
   use suitears::math256::mul_div_down;
@@ -201,8 +200,6 @@ module su::su_state {
     earning_ratio: Int
   ): u64 {
     let beta = (beta as u256); 
-
-    print(&self);
 
     let rho = self.f_supply * self.f_nav * PRECISION / (self.base_supply * self.base_nav);
     let x = rho * beta * (int::to_u256(int::add(int::from_u256(PRECISION), earning_ratio))) / (PRECISION * PRECISION);

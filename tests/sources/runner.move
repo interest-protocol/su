@@ -18,7 +18,6 @@ module su_tests::test_runner {
   const BASE_CAP: u64 = 10000000000000000;
 
   public struct TestRunner { 
-    seq: u64, 
     clock: Clock,
     scenario: Scenario   
   }
@@ -50,7 +49,6 @@ module su_tests::test_runner {
     );
 
     let runner = TestRunner {
-      seq: 0,
       clock,
       scenario
     };
