@@ -17,6 +17,8 @@ module su_tests::test_runner {
   use suitears::oracle::{Self, Price};
 
   const BASE_CAP: u64 = 10000000000000000;
+  const PRECISION: u64 = 1_000_000_000;
+  const GENESIS_PRICE: u256 = 1000000000000000000;
 
   public struct TestRunner { 
     clock: Clock,
@@ -38,7 +40,7 @@ module su_tests::test_runner {
 
     let f_treasury_cap = test_scenario::take_from_sender<TreasuryCap<F_SUI>>(scenario_mut);
     let x_treasury_cap = test_scenario::take_from_sender<TreasuryCap<X_SUI>>(scenario_mut);
-    let genesis_price = new_price(1000000000000000000);
+    let genesis_price = new_price(GENESIS_PRICE);
 
     vault::share_genesis_state(
       f_treasury_cap,
@@ -57,9 +59,21 @@ module su_tests::test_runner {
     runner
   }
 
+  public fun start_and_mint_both(): TestRunner {
+    let mut runner = start();
+
+    runner.next_tx(@alice);
+
+    let (x, y) = mint_both(&mut runner, 100 * PRECISION, GENESIS_PRICE, 0, 0);
+
+    test_utils::destroy(x);
+    test_utils::destroy(y);
+
+    runner
+  }
+
   public fun state(self: &TestRunner): SuState {
-    let vault = test_scenario::take_shared<Vault>(&self.scenario);
-    let mut treasury = test_scenario::take_shared<Treasury>(&self.scenario);
+    let (vault, mut treasury) = take_shared(&self.scenario);
 
     let treasury_mut = &mut treasury;
 
@@ -73,8 +87,7 @@ module su_tests::test_runner {
       vault::x_nav(&vault, treasury_mut)
     );
 
-    test_scenario::return_shared(treasury);
-    test_scenario::return_shared(vault);
+    return_shared(vault, treasury);
 
     state
   }
@@ -112,8 +125,7 @@ module su_tests::test_runner {
     min_f_coin_amount: u64, 
     min_x_coin_amount: u64
   ): (Coin<F_SUI>, Coin<X_SUI>) {
-    let mut vault = test_scenario::take_shared<Vault>(&self.scenario);
-    let mut treasury = test_scenario::take_shared<Treasury>(&self.scenario);
+    let (mut vault, mut treasury) = take_shared(&self.scenario);
 
     let i_sui = mint_i_sui(self, base_in);
 
@@ -128,10 +140,33 @@ module su_tests::test_runner {
       ctx(&mut self.scenario)
     );
     
-    test_scenario::return_shared(treasury);
-    test_scenario::return_shared(vault);
+    return_shared(vault, treasury);
 
     (f_sui, x_sui)
+  }
+
+  public fun mint_f_coin(
+    self: &mut TestRunner,
+    base_in: u64,
+    oracle_price: u256,
+    min_f_coin_amount: u64, 
+  ): Coin<F_SUI> {
+    let (mut vault, mut treasury) = take_shared(&self.scenario);
+
+    let i_sui = mint_i_sui(self, base_in);
+
+    let f_sui = vault.mint_f_coin(
+      &mut treasury,
+      &self.clock,
+      i_sui,
+      new_price(oracle_price),
+      min_f_coin_amount,
+      ctx(&mut self.scenario)
+    );
+
+    return_shared(vault, treasury);
+
+    f_sui   
   }
 
   public fun end(self: TestRunner) {
@@ -140,6 +175,18 @@ module su_tests::test_runner {
 
   public fun burn_coin<T>(coin_in: Coin<T>, value: u64) {
     test_utils::assert_eq(coin::burn_for_testing(coin_in), value);
+  }
+
+  fun take_shared(scenario: &Scenario): (Vault, Treasury) {
+    let vault = test_scenario::take_shared<Vault>(scenario);
+    let treasury = test_scenario::take_shared<Treasury>(scenario);
+
+    (vault, treasury)
+  }
+
+  fun return_shared(vault: Vault, treasury: Treasury) {
+    test_scenario::return_shared(treasury);
+    test_scenario::return_shared(vault); 
   }
 
   fun new_price(oracle_price: u256): Price {

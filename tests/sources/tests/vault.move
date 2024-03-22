@@ -47,4 +47,20 @@ module su_tests::vault_tests {
 
     runner.end();
   }
+
+  #[test]
+  fun test_mint_f_coin() {
+    let mut runner = test_runner::start_and_mint_both();
+
+    runner.next_tx(@alice);
+
+    let base_in = 5 * PRECISION;
+    let price = 167 * (ORACLE_PRECISION / 100);
+
+    let f_coin = runner.mint_f_coin(base_in, price, 0);
+
+    f_coin.assert_value(7684395499);
+
+    runner.end();
+  }
 }
