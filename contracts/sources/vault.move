@@ -430,11 +430,11 @@ module su::vault {
   }  
 
   public fun base_supply(treasury: &mut Treasury): u64 {
-    treasury::f_supply(treasury)
+    treasury::base_supply(treasury)
   }  
 
   public fun base_nav(self: &Vault, treasury: &mut Treasury): u64 {
-    treasury::f_nav(treasury, self.last_price)
+    treasury::base_nav(treasury, self.last_price)
   }  
 
   public fun f_multiple(self: &Vault, treasury: &mut Treasury): Int {

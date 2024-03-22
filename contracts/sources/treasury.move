@@ -1,6 +1,6 @@
 module su::treasury {
   // === Imports ===
-  
+
   use std::type_name;
 
   use sui::clock::Clock;
@@ -175,12 +175,10 @@ module su::treasury {
     su_state::collateral_ratio(su_state)
   }
 
-  public(friend) fun base_supply(self: &mut Treasury, base_price: u64): u64 {
+  public(friend) fun base_supply(self: &mut Treasury): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
 
-    let su_state = compute_su_state(state, base_price);
-
-    su_state::base_supply(su_state)
+    balance::value(&state.base_balance)
   }
 
   public(friend) fun base_nav(self: &mut Treasury, base_price: u64): u64 {
