@@ -35,6 +35,6 @@ Su is a DeFi application designed to mint and burn coins backed by Sui with diff
 ### TODOS
 
 - Replace I_SUI with an LST
-- Test net faucet
 - Add Events
 - Tests & more tests
+- Need more granular tests

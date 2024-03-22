@@ -22,7 +22,10 @@ module su_tests::test_runner {
 
   public struct TestRunner { 
     clock: Clock,
-    scenario: Scenario   
+    scenario: Scenario,
+    vault: Vault,
+    treasury: Treasury,
+    i_sui_treasury: ISuiTreasury   
   }
 
   public fun start(): TestRunner {
@@ -51,9 +54,18 @@ module su_tests::test_runner {
       ctx(scenario_mut)
     );
 
+    test_scenario::next_tx(scenario_mut, @alice);
+
+    let vault = test_scenario::take_shared<Vault>(scenario_mut);
+    let treasury = test_scenario::take_shared<Treasury>(scenario_mut);
+    let i_sui_treasury = test_scenario::take_shared<ISuiTreasury>(scenario_mut);
+
     let runner = TestRunner {
       clock,
-      scenario
+      scenario,
+      vault,
+      treasury,
+      i_sui_treasury
     };
 
     runner
@@ -72,24 +84,20 @@ module su_tests::test_runner {
     runner
   }
 
-  public fun state(self: &TestRunner): SuState {
-    let (vault, mut treasury) = take_shared(&self.scenario);
+  public fun state(self: &mut TestRunner): SuState {
 
-    let treasury_mut = &mut treasury;
+    let treasury_mut = &mut self.treasury;
+    let vault = &self.vault;
 
-    let state = su_state::new(
+    su_state::new(
       vault::base_supply(treasury_mut),
-      vault::base_nav(&vault, treasury_mut),
-      vault::f_multiple(&vault, treasury_mut),
+      vault::base_nav(vault, treasury_mut),
+      vault::f_multiple(vault, treasury_mut),
       vault::f_supply(treasury_mut),
-      vault::f_nav(&vault, treasury_mut),
+      vault::f_nav(vault, treasury_mut),
       vault::x_supply(treasury_mut),
-      vault::x_nav(&vault, treasury_mut)
-    );
-
-    return_shared(vault, treasury);
-
-    state
+      vault::x_nav(vault, treasury_mut)
+    )
   }
 
   public fun next_tx(self: &mut TestRunner, sender: address): &mut TestRunner {
@@ -101,16 +109,6 @@ module su_tests::test_runner {
     self.clock.set_for_testing(time);
 
     self
-  }
-
-  public fun mint_i_sui(self: &mut TestRunner, amount: u64): Coin<I_SUI> {
-    let mut treasury = test_scenario::take_shared<ISuiTreasury>(&self.scenario);
-
-    let i_sui = i_sui::mint(&mut treasury, amount, ctx(&mut self.scenario));
-
-    test_scenario::return_shared(treasury);
-
-    i_sui
   }
 
   public fun destroy<T>(self: &mut TestRunner, v: T): &mut TestRunner {
@@ -125,24 +123,19 @@ module su_tests::test_runner {
     min_f_coin_amount: u64, 
     min_x_coin_amount: u64
   ): (Coin<F_SUI>, Coin<X_SUI>) {
-    let (mut vault, mut treasury) = take_shared(&self.scenario);
 
     let i_sui = mint_i_sui(self, base_in);
 
-    let (f_sui, x_sui) = vault::mint_both(
-      &mut vault,
-      &mut treasury,
+    vault::mint_both(
+      &mut self.vault,
+      &mut self.treasury,
       &self.clock,
       i_sui,
       new_price(oracle_price),
       min_f_coin_amount,
       min_x_coin_amount,
       ctx(&mut self.scenario)
-    );
-    
-    return_shared(vault, treasury);
-
-    (f_sui, x_sui)
+    )
   }
 
   public fun mint_f_coin(
@@ -151,42 +144,100 @@ module su_tests::test_runner {
     oracle_price: u256,
     min_f_coin_amount: u64, 
   ): Coin<F_SUI> {
-    let (mut vault, mut treasury) = take_shared(&self.scenario);
-
     let i_sui = mint_i_sui(self, base_in);
 
-    let f_sui = vault.mint_f_coin(
-      &mut treasury,
+    self.vault.mint_f_coin(
+      &mut self.treasury,
       &self.clock,
       i_sui,
       new_price(oracle_price),
       min_f_coin_amount,
       ctx(&mut self.scenario)
-    );
-
-    return_shared(vault, treasury);
-
-    f_sui   
+    )
   }
+
+  public fun f_standard_mint_fee(self: &TestRunner): u64 {
+    vault::f_standard_mint_fee(&self.vault)
+  }
+
+  public fun f_stability_mint_fee(self: &TestRunner): u64 {
+    vault::f_stability_mint_fee(&self.vault)
+  }
+
+  public fun f_standard_redeem_fee(self: &TestRunner): u64 {
+    vault::f_standard_redeem_fee(&self.vault)
+  }
+
+  public fun f_stability_redeem_fee(self: &TestRunner): u64 {
+    vault::f_stability_redeem_fee(&self.vault)
+  }  
+
+  public fun x_standard_mint_fee(self: &TestRunner): u64 {
+    vault::x_standard_mint_fee(&self.vault)
+  }
+
+  public fun x_stability_mint_fee(self: &TestRunner): u64 {
+    vault::x_stability_mint_fee(&self.vault)
+  }
+
+  public fun x_standard_redeem_fee(self: &TestRunner): u64 {
+    vault::x_standard_redeem_fee(&self.vault)
+  }
+
+  public fun x_stability_redeem_fee(self: &TestRunner): u64 {
+    vault::x_stability_redeem_fee(&self.vault)    
+  }  
+
+  public fun stability_collateral_ratio(self: &TestRunner): u64 {
+    vault::stability_collateral_ratio(&self.vault)       
+  }  
+
+  public fun rebalance_collateral_ratio(self: &TestRunner): u64 {
+    vault::rebalance_collateral_ratio(&self.vault)    
+  }    
+
+  public fun reserve_fee(self: &mut TestRunner): u64 {
+    vault::reserve_fee(&mut self.treasury)       
+  }
+
+  public fun rebalance_fee(self: &mut TestRunner): u64 {
+    vault::rebalance_fee(&mut self.treasury)        
+  }  
+
+  public fun last_f_nav(self: &mut TestRunner): u64 {
+    vault::last_f_nav(&mut self.treasury)       
+  }
+
+  public fun genesis_price(self: &mut TestRunner): u64 {
+    vault::genesis_price(&mut self.treasury)  
+  }  
+
+  public fun base_balance_cap(self: &mut TestRunner): u64 {
+    vault::base_balance_cap(&mut self.treasury) 
+  }    
+
+  public fun base_balance(self: &mut TestRunner): u64 {
+    vault::base_balance(&mut self.treasury)     
+  }    
+
+  public fun reserve_balance(self: &mut TestRunner): u64 {
+    vault::reserve_balance(&mut self.treasury) 
+  }   
+
+  public fun rebalance_balance(self: &mut TestRunner): u64 {
+    vault::rebalance_balance(&mut self.treasury) 
+  }   
 
   public fun end(self: TestRunner) {
     test_utils::destroy(self);
   }
 
+  fun mint_i_sui(self: &mut TestRunner, amount: u64): Coin<I_SUI> {
+    i_sui::mint(&mut self.i_sui_treasury, amount, ctx(&mut self.scenario))
+  }
+
   public fun burn_coin<T>(coin_in: Coin<T>, value: u64) {
     test_utils::assert_eq(coin::burn_for_testing(coin_in), value);
-  }
-
-  fun take_shared(scenario: &Scenario): (Vault, Treasury) {
-    let vault = test_scenario::take_shared<Vault>(scenario);
-    let treasury = test_scenario::take_shared<Treasury>(scenario);
-
-    (vault, treasury)
-  }
-
-  fun return_shared(vault: Vault, treasury: Treasury) {
-    test_scenario::return_shared(treasury);
-    test_scenario::return_shared(vault); 
   }
 
   fun new_price(oracle_price: u256): Price {

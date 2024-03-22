@@ -61,6 +61,24 @@ module su_tests::vault_tests {
 
     f_coin.assert_value(7684395499);
 
+    runner.next_tx(@alice);
+
+    let state = runner.state();
+
+    let assert = assert_state::new(state);
+
+    // let expected_f_coin_value = 7684395499;
+    // let expected_base_supply = 1;
+
+    // assert
+    // .base_supply(base_supply)
+    // .base_nav(PRECISION)
+    // .f_multiple(int::zero())
+    // .f_supply(initial_supply)
+    // .f_nav(PRECISION)                                                  
+    // .x_supply(initial_supply)
+    // .x_nav(PRECISION);      
+
     runner.end();
   }
 }

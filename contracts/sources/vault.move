@@ -16,7 +16,7 @@ module su::vault {
   use suitears::int::Int;
   use suitears::oracle::{Self, Price};
   use suitears::math64::{min, mul_div_up};
-
+  
   // === Friends ===
 
   friend su::admin;
