@@ -1,5 +1,6 @@
 #[test_only]
 module su_tests::vault_tests {
+
   use sui::coin::Coin;
   
   use suitears::int;
@@ -97,4 +98,61 @@ module su_tests::vault_tests {
 
     runner.end();
   }
+
+  #[test]
+  fun test_mint_x_coin() {
+    let mut runner = test_runner::start_and_mint_both();
+
+    runner.next_tx(@alice);
+
+    let initial_base_supply = runner.base_balance();
+    let initial_f_supply = runner.f_supply();
+    let initial_x_supply = runner.x_supply();
+    let base_in = 15 * PRECISION;
+    let price = 221 * (ORACLE_PRECISION / 100);  
+      
+    let expected_base_nav = 221 * (PRECISION / 100);
+    let expected_f_multiple = 121 * (PRECISION / 1000);
+    let expected_f_nav = PRECISION + expected_f_multiple;
+
+    let expected_base_in = base_in.remove_fee(runner.x_standard_mint_fee());
+
+    let expected_x_value = test_runner::compute_x_mint_amount(
+      expected_base_in,
+      expected_base_nav,
+      initial_base_supply,
+      expected_f_nav,
+      initial_f_supply,
+      initial_x_supply
+    );
+    let expected_x_nav  = test_runner::compute_x_nav(
+      initial_base_supply + expected_base_in, 
+      expected_base_nav, 
+      initial_f_supply, 
+      expected_f_nav, 
+      initial_x_supply + expected_x_value
+    );
+
+    let (x_coin, i_coin) = runner.mint_x_coin(base_in, price, expected_x_value);
+
+    x_coin.assert_value(expected_x_value);
+    i_coin.assert_value(0);
+
+    runner.next_tx(@alice);
+
+    let state = runner.state();
+
+    let assert = assert_state::new(state);    
+
+    assert
+    .base_supply(initial_base_supply + expected_base_in)
+    .base_nav(expected_base_nav)
+    .f_multiple(int::from_u64(expected_f_multiple))
+    .f_supply(initial_f_supply)
+    .f_nav(expected_f_nav)                                                  
+    .x_supply(initial_x_supply + expected_x_value)
+    .x_nav(expected_x_nav);   
+
+    runner.end();
+  }  
 }
