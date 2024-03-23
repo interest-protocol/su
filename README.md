@@ -26,7 +26,6 @@ Su is a DeFi application designed to mint and burn coins backed by Sui with diff
 - **structs** Data structures.
   - **ema:** It keeps track of the exponential moving average of Sui
   - **su_state** It contains all the invariant logic of the protocol.
-- **tests:** It has all test modules
 - **admin:** Contains the admin-gated functions
 - **rebalance_f_pool:** A pool that redeems F_SUI to increase the CR.
 - **treasury:** Controls minting/redeeming, fees logic, and balances

@@ -86,7 +86,6 @@ module su_tests::test_runner {
   }
 
   public fun state(self: &mut TestRunner): SuState {
-
     let treasury_mut = &mut self.treasury;
     let vault = &self.vault;
 
@@ -108,7 +107,6 @@ module su_tests::test_runner {
 
   public fun set_time(self: &mut TestRunner, time: u64): &mut TestRunner {
     self.clock.set_for_testing(time);
-
     self
   }
 

@@ -83,9 +83,7 @@ module su_tests::vault_tests {
 
     runner.next_tx(@alice);
 
-    let state = runner.state();
-
-    let assert = assert_state::new(state);
+    let assert = assert_state::new(runner.state());
 
     assert
     .base_supply(initial_base_supply + expected_base_in)
@@ -140,9 +138,7 @@ module su_tests::vault_tests {
 
     runner.next_tx(@alice);
 
-    let state = runner.state();
-
-    let assert = assert_state::new(state);    
+    let assert = assert_state::new(runner.state());    
 
     assert
     .base_supply(initial_base_supply + expected_base_in)
