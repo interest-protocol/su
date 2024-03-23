@@ -1,6 +1,5 @@
 module su::vault {
   // === Imports ===
-  use std::debug::print;
 
   use sui::math::pow;
   use sui::clock::Clock;
