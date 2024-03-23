@@ -465,13 +465,7 @@ module su::vault {
     let scaled_price = oracle::price(oracle_price);
     let decimals = oracle::decimals(oracle_price);
 
-    if (decimals >= PRECISION_DECIMALS) {
-      let factor = pow(10, decimals - PRECISION_DECIMALS);
-      (scaled_price / (factor as u256) as u64)
-    } else {
-      let factor = pow(10, PRECISION_DECIMALS - decimals);
-      ((scaled_price * (factor as u256)) as u64)
-    }
+    normalize_price(scaled_price, decimals)
   }
 
   public fun last_price(self: &Vault): u64 {
