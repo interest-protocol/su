@@ -14,6 +14,7 @@ module su_tests::test_runner {
   use su::su_state::{Self, SuState};
   use su::i_sui::{Self, I_SUI, Treasury as ISuiTreasury};
 
+  use suitears::math64;
   use suitears::oracle::{Self, Price};
 
   const BASE_CAP: u64 = 10000000000000000;
@@ -196,6 +197,14 @@ module su_tests::test_runner {
     vault::rebalance_collateral_ratio(&self.vault)    
   }    
 
+  public fun f_supply(self: &mut TestRunner): u64 {
+    vault::f_supply(&mut self.treasury)
+  }
+
+  public fun x_supply(self: &mut TestRunner): u64 {
+    vault::x_supply(&mut self.treasury)
+  }  
+
   public fun reserve_fee(self: &mut TestRunner): u64 {
     vault::reserve_fee(&mut self.treasury)       
   }
@@ -228,16 +237,38 @@ module su_tests::test_runner {
     vault::rebalance_balance(&mut self.treasury) 
   }   
 
+  public fun burn_coin<T>(coin_in: Coin<T>, value: u64) {
+    test_utils::assert_eq(coin::burn_for_testing(coin_in), value);
+  }
+
+  public fun compute_x_nav(base_supply: u64, base_nav: u64, f_supply: u64, f_nav: u64, x_supply: u64): u64 {
+    let (
+      base_supply,
+      base_nav,
+      f_supply,
+      f_nav,
+      x_supply
+    ) = (
+      (base_supply as u256),
+      (base_nav as u256),
+      (f_supply as u256),
+      (f_nav as u256),
+      (x_supply as u256),
+    );
+
+    (((base_supply * base_nav - (f_supply * f_nav)) / x_supply) as u64) 
+  }
+
+  public fun remove_fee(base_in: u64, fee: u64): u64 {
+    base_in - math64::mul_div_up(base_in, fee, PRECISION)
+  }
+
   public fun end(self: TestRunner) {
     test_utils::destroy(self);
   }
 
   fun mint_i_sui(self: &mut TestRunner, amount: u64): Coin<I_SUI> {
     i_sui::mint(&mut self.i_sui_treasury, amount, ctx(&mut self.scenario))
-  }
-
-  public fun burn_coin<T>(coin_in: Coin<T>, value: u64) {
-    test_utils::assert_eq(coin::burn_for_testing(coin_in), value);
   }
 
   fun new_price(oracle_price: u256): Price {
