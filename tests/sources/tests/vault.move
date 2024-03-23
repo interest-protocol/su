@@ -35,8 +35,6 @@ module su_tests::vault_tests {
     f_coin.assert_value(initial_supply);
     x_coin.assert_value(initial_supply);
 
-    runner.next_tx(@alice);
-
     let assert = assert_state::new(runner.state());
 
     assert
@@ -80,8 +78,6 @@ module su_tests::vault_tests {
     let f_coin = runner.mint_f_coin(base_in, price, 0);
 
     f_coin.assert_value(expected_f_coin_value);
-
-    runner.next_tx(@alice);
 
     let assert = assert_state::new(runner.state());
 
@@ -135,8 +131,6 @@ module su_tests::vault_tests {
 
     x_coin.assert_value(expected_x_value);
     i_coin.assert_value(0);
-
-    runner.next_tx(@alice);
 
     let assert = assert_state::new(runner.state());    
 
