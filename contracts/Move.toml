@@ -13,3 +13,4 @@ SuiTears = { git = "https://github.com/interest-protocol/suitears.git" , subdir 
 su = "0x0"
 std = "0x1"
 sui = "0x2"
+suitears = "0x901b511b878f90f1b833df46648224b913df60f8b3165086caba6f59e75d6e98"
