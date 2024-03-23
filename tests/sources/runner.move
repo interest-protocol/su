@@ -173,6 +173,22 @@ module su_tests::test_runner {
     )
   }
 
+  public fun redeem_x_coin(
+    self: &mut TestRunner,
+    x_coin_in: u64,
+    oracle_price: u256,
+    min_base_amount: u64,
+  ): Coin<I_SUI> {
+    self.vault.redeem_x_coin(
+      &mut self.treasury,
+      &self.clock,
+      coin::mint_for_testing(x_coin_in, ctx(&mut self.scenario)),
+      new_price(oracle_price),
+      min_base_amount,
+      ctx(&mut self.scenario)
+    )    
+  }
+
   public fun f_standard_mint_fee(self: &TestRunner): u64 {
     vault::f_standard_mint_fee(&self.vault)
   }
@@ -303,6 +319,35 @@ module su_tests::test_runner {
       (base_supply * base_nav) - 
       (f_supply * f_nav)
     )) as u64)
+  }
+
+  public fun compute_x_value(
+    base_supply: u64,
+    base_nav: u64,
+    f_supply: u64,
+    f_nav: u64
+  ): u256 {
+   let (
+      base_supply,
+      base_nav,
+      f_supply,
+      f_nav,
+    ) = (
+      (base_supply as u256),
+      (base_nav as u256),
+      (f_supply as u256),
+      (f_nav as u256)
+    );    
+
+    base_supply * base_nav - (f_supply * f_nav)  
+  }
+
+  public fun to_u256(x: u64): u256 {
+    (x as u256)
+  }
+
+  public fun to_u64(x: u256): u64 {
+    (x as u64)
   }
 
   public fun remove_fee(base_in: u64, fee: u64): u64 {
