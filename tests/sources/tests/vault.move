@@ -22,7 +22,7 @@ module su_tests::vault_tests {
 
     runner.next_tx(@alice);
 
-    let initial_supply = 50000000000;
+    let initial_supply = 50 * PRECISION;
     let base_supply = 100 * PRECISION;
 
     let (f_coin, x_coin) = runner.mint_both(
