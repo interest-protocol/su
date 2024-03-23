@@ -173,6 +173,22 @@ module su_tests::test_runner {
     )
   }
 
+  public fun redeem_f_coin(
+    self: &mut TestRunner,
+    f_coin_in: u64,
+    oracle_price: u256,
+    min_base_amount: u64,
+  ): Coin<I_SUI> {
+    self.vault.redeem_f_coin(
+      &mut self.treasury,
+      &self.clock,
+      coin::mint_for_testing(f_coin_in, ctx(&mut self.scenario)),
+      new_price(oracle_price),
+      min_base_amount,
+      ctx(&mut self.scenario)
+    )    
+  }
+
   public fun redeem_x_coin(
     self: &mut TestRunner,
     x_coin_in: u64,

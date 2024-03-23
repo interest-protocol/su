@@ -150,6 +150,56 @@ module su_tests::vault_tests {
   }
 
   #[test]
+  public fun test_redeem_f_coin() {
+    let mut runner = test_runner::start_and_mint_both();
+
+    runner.next_tx(@alice);
+
+    let base_in = 15 * PRECISION;
+    let price = 221 * (ORACLE_PRECISION / 100);  
+
+    let (x_coin, i_coin) = runner.mint_x_coin(base_in, price, 0);
+
+    runner
+    .destroy(x_coin)
+    .destroy(i_coin);
+
+    runner.next_tx(@alice);
+
+    let state = runner.state();
+
+    let base_supply = state.base_supply();
+    let base_nav = state.base_nav();
+
+    let f_supply = state.f_supply();
+    let f_nav = state.f_nav();
+    
+    let x_nav = state.x_nav();
+    let x_supply = state.x_supply();
+    
+    let f_amount_in = 10 * PRECISION;
+
+    let expected_i_sui_amount = math256::mul_div_down(f_amount_in.to_u256(), f_nav.to_u256(), base_nav.to_u256());
+
+    let i_sui = runner.redeem_f_coin(f_amount_in, price, 0);
+
+    i_sui.assert_value(expected_i_sui_amount.to_u64().remove_fee(runner.f_standard_redeem_fee()));
+
+    let assert = assert_state::new(runner.state());
+
+    assert
+    .base_supply(base_supply - expected_i_sui_amount.to_u64())
+    .base_nav(base_nav)
+    .f_multiple(state.f_multiple())
+    .f_supply(f_supply - f_amount_in)
+    .f_nav(f_nav)                                                  
+    .x_supply(x_supply)
+    .x_nav(x_nav);     
+
+    runner.end();
+  }
+
+  #[test]
   public fun test_redeem_x_coin() {
     let mut runner = test_runner::start_and_mint_both();
 
