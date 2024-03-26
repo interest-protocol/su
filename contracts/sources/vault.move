@@ -449,7 +449,7 @@ module su::vault {
     treasury::x_supply(treasury)
   }
 
-  public fun x_nav(self: &Vault, treasury: &mut Treasury): u64 {
+  public fun last_x_nav(self: &Vault, treasury: &mut Treasury): u64 {
     treasury::x_nav(treasury, self.last_price)
   }
 
