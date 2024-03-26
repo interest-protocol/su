@@ -389,10 +389,6 @@ module su::vault {
     treasury::rebalance_fee(treasury)
   }  
 
-  public fun last_f_nav(treasury: &mut Treasury): u64 {
-    treasury::last_f_nav(treasury)
-  }
-
   public fun genesis_price(treasury: &mut Treasury): u64 {
     treasury::genesis_price(treasury)
   }  
@@ -425,19 +421,19 @@ module su::vault {
     ) 
   }  
 
-  public fun collateral_ratio(treasury: &mut Treasury, base_price: u64): u64 {
-   treasury::collateral_ratio(treasury, base_price)
+  public fun last_collateral_ratio(self: &Vault, treasury: &mut Treasury): u64 {
+   treasury::collateral_ratio(treasury, self.last_price)
   }  
 
   public fun base_supply(treasury: &mut Treasury): u64 {
     treasury::base_supply(treasury)
   }  
 
-  public fun base_nav(self: &Vault, treasury: &mut Treasury): u64 {
+  public fun last_base_nav(self: &Vault, treasury: &mut Treasury): u64 {
     treasury::base_nav(treasury, self.last_price)
   }  
 
-  public fun f_multiple(self: &Vault, treasury: &mut Treasury): Int {
+  public fun last_f_multiple(self: &Vault, treasury: &mut Treasury): Int {
     treasury::f_multiple(treasury, self.last_price)
   }
 
@@ -445,7 +441,7 @@ module su::vault {
     treasury::f_supply(treasury)
   }
 
-  public fun f_nav(self: &Vault, treasury: &mut Treasury): u64 {
+  public fun last_f_nav(self: &Vault, treasury: &mut Treasury): u64 {
     treasury::f_nav(treasury, self.last_price)
   }
 
@@ -470,6 +466,22 @@ module su::vault {
 
   public fun last_price(self: &Vault): u64 {
     self.last_price
+  }
+
+  public fun quote_base_nav(treasury: &mut Treasury, price: u64): u64 {
+    treasury::base_nav(treasury, price)    
+  }
+
+  public fun quote_f_multiple(treasury: &mut Treasury, price: u64): Int {
+    treasury::f_multiple(treasury, price)
+  }  
+
+  public fun quote_f_nav(treasury: &mut Treasury, price: u64): u64 {
+    treasury::f_nav(treasury, price)
+  }
+
+  public fun quote_x_nav(treasury: &mut Treasury, price: u64): u64 {
+    treasury::x_nav(treasury, price)
   }
 
   // === Public-Friend Functions ===

@@ -54,7 +54,7 @@ import { client, getId, IObjectInfo, keypair } from './utils';
           type: 'package',
           id: item.data?.objectId,
         });
-      } else if (!item.data!.type!.startsWith('0x2::')) {
+      } else if (!item.data!.type!.includes('SUI')) {
         objects.push({
           type: item.data?.type!.slice(68),
           id: item.data?.objectId,

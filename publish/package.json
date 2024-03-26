@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "register-oracle": "npx ts-node ./src/register-oracle.ts",
+    "mint-both": "npx ts-node ./src/mint-both.ts",
+    "share-genesis-state": "npx ts-node ./src/share-genesis-state.ts",
     "publish": "npx ts-node ./src/publish.ts"
   },
   "keywords": [],

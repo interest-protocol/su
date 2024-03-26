@@ -2,13 +2,25 @@
 
 [move]
 version = 0
-manifest_digest = "252E151D59861D86ED350B71D2E42B0EA412181C76BD9A70501C1C3602ADEC39"
-deps_digest = "060AD7E57DFB13104F21BE5F5C3759D03F0553FC3229247D9A7A6B45F50D03A3"
+manifest_digest = "E4C40BCF33D4A930DC489FDE08C395EB7D81456D8A80F858E82B555E8B25E623"
+deps_digest = "F9B494B64F0615AED0E98FC12A85B85ECD2BC5185C22D30E7F67786BB52E507C"
+
+dependencies = [
+  { name = "CoinXOracle" },
+  { name = "MoveStdlib" },
+  { name = "Sui" },
+  { name = "SuiTears" },
+]
+
+[[move.package]]
+name = "CoinXOracle"
+source = { git = "https://github.com/interest-protocol/coin-x-oracle.git", rev = "switchboard-only", subdir = "contracts" }
 
 dependencies = [
   { name = "MoveStdlib" },
   { name = "Sui" },
   { name = "SuiTears" },
+  { name = "SwitchboardStdLib" },
 ]
 
 [[move.package]]
@@ -32,7 +44,16 @@ dependencies = [
   { name = "Sui" },
 ]
 
+[[move.package]]
+name = "SwitchboardStdLib"
+source = { git = "https://github.com/switchboard-xyz/sbv2-sui.git", rev = "main", subdir = "move/testnet/switchboard_std/" }
+
+dependencies = [
+  { name = "MoveStdlib" },
+  { name = "Sui" },
+]
+
 [move.toolchain-version]
-compiler-version = "1.18.0"
+compiler-version = "1.21.0"
 edition = "legacy"
 flavor = "sui"
