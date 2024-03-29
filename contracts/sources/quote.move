@@ -101,7 +101,6 @@ module su::quote {
 
     let x_amount = su_state::mint_x_coin(su_state, base_in_value);
 
-
     let bonus_amount = if (max_base_in_before_rebalance_mode != 0) {
       let rebalance_amount = treasury::rebalance_balance(treasury);
       let bonus_rate = treasury::bonus_rate(treasury);
@@ -109,6 +108,72 @@ module su::quote {
     } else 0;
 
     (x_amount - fee_amount, bonus_amount)
+  }
+
+  public fun redeem_f_coin(
+    vault: &mut Vault,
+    treasury: &mut Treasury,
+    f_coin_in_value: u64,
+    base_price: u64,     
+  ): u64 {
+    if (f_coin_in_value == 0) return 0;  
+
+    let (_, max_base_out_before_stability_mode) = treasury::max_redeemable_f_coin(
+      treasury, 
+      base_price, 
+      vault::stability_collateral_ratio(vault)
+    ); 
+
+    let (_, max_base_out_before_rebalance_mode) = treasury::max_redeemable_f_coin(
+      treasury, 
+      base_price, 
+      vault::rebalance_collateral_ratio(vault)
+    );     
+
+    let su_state = treasury::su_state(treasury, base_price);
+
+    let base_out = su_state::redeem(su_state, f_coin_in_value, 0);
+
+    let bonus_amout = if (max_base_out_before_rebalance_mode != 0) {
+      let rebalance_amount = treasury::rebalance_balance(treasury);
+      let bonus_rate = treasury::bonus_rate(treasury);
+      min(mul_div_down(min(max_base_out_before_rebalance_mode, base_out), bonus_rate, PRECISION), rebalance_amount)
+    } else 0;
+
+    let fee_amount = redeem_f_coin_fee(vault, treasury, base_out, base_price);
+
+    base_out - fee_amount
+  }
+
+  public fun redeem_x_coin(
+    vault: &mut Vault,
+    treasury: &mut Treasury,
+    x_coin_in_value: u64,
+    base_price: u64   
+  ): u64 {
+    if (x_coin_in_value == 0) return 0;
+
+    let (_, max_base_out_before_stability_mode) = treasury::max_redeemable_x_coin(
+      treasury, 
+      base_price, 
+      vault::stability_collateral_ratio(vault)
+    );
+
+    let (_, max_base_out_before_rebalance_mode) = treasury::max_redeemable_x_coin(
+      treasury, 
+      base_price, 
+      vault::rebalance_collateral_ratio(vault)
+    );
+
+    if (max_base_out_before_rebalance_mode == 0) return 0;
+
+    let su_state = treasury::su_state(treasury, base_price);
+
+    let base_out = su_state::redeem(su_state, 0, x_coin_in_value);
+
+    let fee_amount = redeem_x_coin_fee(vault, treasury, base_out, base_price);
+
+    base_out - fee_amount
   }
 
   public fun mint_f_coin_fee(
