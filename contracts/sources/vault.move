@@ -468,22 +468,6 @@ module su::vault {
     self.last_price
   }
 
-  public fun quote_base_nav(treasury: &mut Treasury, price: u64): u64 {
-    treasury::base_nav(treasury, price)    
-  }
-
-  public fun quote_f_multiple(treasury: &mut Treasury, price: u64): Int {
-    treasury::f_multiple(treasury, price)
-  }  
-
-  public fun quote_f_nav(treasury: &mut Treasury, price: u64): u64 {
-    treasury::f_nav(treasury, price)
-  }
-
-  public fun quote_x_nav(treasury: &mut Treasury, price: u64): u64 {
-    treasury::x_nav(treasury, price)
-  }
-
   // === Public-Friend Functions ===
 
   public(friend) fun set_oracle_id_address(self: &mut Vault, oracle_id_address: address) {
