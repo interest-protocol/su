@@ -230,9 +230,14 @@ module su::treasury {
     su_state::x_nav(su_state)
   }
 
-  public (friend) fun leverage_ratio(self: &mut Treasury, c: &Clock): u64 {
+  public(friend) fun leverage_ratio(self: &mut Treasury, c: &Clock): u64 {
     let state = load_treasury_state_and_maybe_upgrade(self);
     ema::ema_value(state.ema, c)
+  }
+
+  public(friend) fun su_state(self: &mut Treasury, base_price: u64): SuState {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    compute_su_state(state, base_price)
   }   
 
   public(friend) fun max_mintable_f_coin(self: &mut Treasury, base_price: u64, new_collateral_ratio: u64): (u64, u64) {

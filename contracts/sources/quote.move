@@ -1,11 +1,14 @@
 module su::quote {
   // === Imports ===
 
-  use su::vault::{Self, Vault};
-  use su::treasury::{Self, Treasury};
+  use sui::clock::Clock;
 
   use suitears::int;
   use suitears::math64::{min, mul_div_up};
+
+  use su::su_state;
+  use su::vault::{Self, Vault};
+  use su::treasury::{Self, Treasury};
 
   // === Constants ===
   const PRECISION: u64 = 1_000_000_000;
@@ -27,6 +30,43 @@ module su::quote {
 
   public fun x_nav(treasury: &mut Treasury, price: u64): u64 {
     treasury::x_nav(treasury, price)
+  }  
+
+  public fun collateral_ratio(treasury: &mut Treasury, price: u64): u64 {
+   treasury::collateral_ratio(treasury, price)
+  }  
+
+  public fun mint_f_coin(
+    vault: &mut Vault,
+    treasury: &mut Treasury,
+    c: &Clock,
+    base_in_value: u64,
+    base_price: u64
+  ): u64 {
+    if (base_in_value == 0) return 0;
+
+
+    let (max_base_in_before_stability_mode, _) = treasury::max_mintable_f_coin(
+      treasury, 
+      base_price, 
+      vault::stability_collateral_ratio(vault)
+    );
+
+    let (max_base_in_before_rebalance_mode, _) = treasury::max_mintable_f_coin(
+      treasury, 
+      base_price, 
+      vault::rebalance_collateral_ratio(vault)
+    );
+
+    if (max_base_in_before_rebalance_mode == 0 || base_in_value >= max_base_in_before_rebalance_mode) return 0;
+
+    let fee_amount = mint_f_coin_fee(vault, treasury, base_in_value, base_price);
+
+    let base_balance_cap = vault::base_balance_cap(treasury);
+
+    let su_state = treasury::su_state(treasury, base_price);
+
+    su_state::mint_x_coin(su_state, base_in_value) - fee_amount
   }  
 
   public fun mint_f_coin_fee(
