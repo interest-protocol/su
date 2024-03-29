@@ -240,6 +240,11 @@ module su::treasury {
     compute_su_state(state, base_price)
   }   
 
+  public(friend) fun bonus_rate(self: &mut Treasury): u64 {
+    let state = load_treasury_state_and_maybe_upgrade(self);
+    state.bonus_rate
+  }
+
   public(friend) fun max_mintable_f_coin(self: &mut Treasury, base_price: u64, new_collateral_ratio: u64): (u64, u64) {
     assert!(new_collateral_ratio > PRECISION, ENewCollateralRatioIsTooSmall);
 
