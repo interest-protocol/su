@@ -118,12 +118,6 @@ module su::quote {
   ): u64 {
     if (f_coin_in_value == 0) return 0;  
 
-    let (_, max_base_out_before_stability_mode) = treasury::max_redeemable_f_coin(
-      treasury, 
-      base_price, 
-      vault::stability_collateral_ratio(vault)
-    ); 
-
     let (_, max_base_out_before_rebalance_mode) = treasury::max_redeemable_f_coin(
       treasury, 
       base_price, 
@@ -152,12 +146,6 @@ module su::quote {
     base_price: u64   
   ): u64 {
     if (x_coin_in_value == 0) return 0;
-
-    let (_, max_base_out_before_stability_mode) = treasury::max_redeemable_x_coin(
-      treasury, 
-      base_price, 
-      vault::stability_collateral_ratio(vault)
-    );
 
     let (_, max_base_out_before_rebalance_mode) = treasury::max_redeemable_x_coin(
       treasury, 

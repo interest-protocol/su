@@ -1,0 +1,30 @@
+[
+  {
+    "type": "admin::Admin",
+    "id": "0x1bbf1a951d6b5c288d3fd0a111c93fdaf61a4119a0cba7623267aba475946dae"
+  },
+  {
+    "type": "owner::OwnerCap<0x829e580704740d6fa0d45d172bb765001f43406ed6884447dd21c9b3a348014c::oracle::SuOracle>",
+    "id": "0x2e086a1c0b438f0698208d9e11955761f31be9449098bf4a1474ce39c9b25f6c"
+  },
+  {
+    "type": "",
+    "id": "0x7e0f379efbb9c0803786dcaf1b6e91d872d4cd486ca15c2132dea29c3678c938"
+  },
+  {
+    "type": "package",
+    "id": "0x829e580704740d6fa0d45d172bb765001f43406ed6884447dd21c9b3a348014c"
+  },
+  {
+    "type": "oracle::Oracle<0x829e580704740d6fa0d45d172bb765001f43406ed6884447dd21c9b3a348014c::oracle::SuOracle>",
+    "id": "0xb9a2ba2cbb5dfc0171a79c215182cb34aa777010ef28a813e6b27413fbc51861"
+  },
+  {
+    "type": "i_sui::Treasury",
+    "id": "0xbeea2f45c6773657b0f0ead06575320f6950fc20b885b7d236de64ef429aa6c6"
+  },
+  {
+    "type": "rebalance_f_pool::RebalancePool",
+    "id": "0xeb5c5985128c120623d8672b6b244c71488af62f6c696ee575c8ece3e8c3204d"
+  }
+]

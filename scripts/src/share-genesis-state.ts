@@ -1,20 +1,22 @@
 import { TransactionBlock } from '@mysten/sui.js/transactions';
+import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui.js/utils';
 
-import { client, COIN_X_ORACLE_PACKAGE_ID, getId, keypair, SWITCHBOARD_AGGREGATOR } from './utils';
+import { client, getId, keypair, requestPriceOracle } from './utils';
 
 (async () => {
   try {
     console.log('calling...');
 
-    const tx = new TransactionBlock();
+    const [tx, price] = requestPriceOracle(new TransactionBlock());
 
     tx.moveCall({
-      target: `${COIN_X_ORACLE_PACKAGE_ID}::switchboard_oracle::add`,
-      typeArguments: [`${getId('package')}::oracle::SuOracle`],
+      target: `${getId('package')}::vault::share_genesis_state`,
       arguments: [
-        tx.object('0x4e1929072f793cd684dcd458b0f34af4f9954b3e1298c8f3e7550766c08141a8'),
-        tx.object('0x86f9e1209be772c97c969640840b6af08ed1483a3198944bad7331ebde9f3f85'),
-        tx.object(SWITCHBOARD_AGGREGATOR),
+        tx.object('0x89434ce37fddea8d48ea03766d5175041942c20e0d6b5497a3e757043f52eaf0'),
+        tx.object('0xefe7ed17f9cfb11104e8edddec70bd55e73e45ec6a925b4c5f736dcfd9276c6f'),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+        price,
+        tx.pure('100000000000000000'),
       ],
     });
 

@@ -8,11 +8,11 @@ authors = ["Jose Cerqueira (jose@interestprotocol.com)"]
 MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "framework/testnet"  }
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
 SuiTears = { git = "https://github.com/interest-protocol/suitears.git" , subdir = "contracts", rev = "testnet" }
-CoinXOracle = { git = "https://github.com/interest-protocol/coin-x-oracle.git", subdir ="contracts", rev = "switchboard-only" }
+CoinXOracle = { git = "https://github.com/interest-protocol/coin-x-oracle.git", subdir ="contracts", rev = "main" }
 
 [addresses]
 su = "0x0"
 std = "0x1"
 sui = "0x2"
-suitears = "0x901b511b878f90f1b833df46648224b913df60f8b3165086caba6f59e75d6e98"
-coin_x_oracle = "0xf60ef86bf632916f96c0c46e386dd30e78c971463e880d462893045906af2a69"
+suitears = "0xbd097359082272fdef8e9ce53815264d0142d6209f3f0cb48ee31c10aaf846d5"
+coin_x_oracle = "0x667df8861d3b005d9c16b30d451c539a53cef961c75951686c095c011e4a7050"

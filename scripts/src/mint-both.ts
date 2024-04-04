@@ -1,6 +1,7 @@
 import { TransactionBlock } from '@mysten/sui.js/transactions';
 import { SUI_CLOCK_OBJECT_ID } from '@mysten/sui.js/utils';
-import { client, COIN_X_ORACLE_PACKAGE_ID, getId, keypair, SWITCHBOARD_AGGREGATOR, requestPriceOracle } from './utils';
+
+import { client, getId, keypair, requestPriceOracle } from './utils';
 
 (async () => {
   try {
@@ -9,8 +10,8 @@ import { client, COIN_X_ORACLE_PACKAGE_ID, getId, keypair, SWITCHBOARD_AGGREGATO
     const txb = new TransactionBlock();
 
     const [coin_i_sui_] = txb.moveCall({
-      target: `0x93138c3abb7263fe606d685cac44b68d1dae5dfa1d89f3366d5ef26e9d6d9549::i_sui::mint`,
-      arguments: [txb.object('0x22ca0850ebfefb2067b8658850af70a4943d24867f330941939ca9e6c3e5f4bd'), txb.pure('1000000000000')],
+      target: `${getId('package')}::i_sui::mint`,
+      arguments: [txb.object('0xbeea2f45c6773657b0f0ead06575320f6950fc20b885b7d236de64ef429aa6c6'), txb.pure('1000000000000')],
     });
 
     const [tx, price] = requestPriceOracle(txb);
@@ -18,8 +19,8 @@ import { client, COIN_X_ORACLE_PACKAGE_ID, getId, keypair, SWITCHBOARD_AGGREGATO
     const [coin_f, coin_x] = tx.moveCall({
       target: `${getId('package')}::vault::mint_both`,
       arguments: [
-        tx.object('0xdea4e8ea65a949b800ee1b07e8714c7db43c84c3498f2f4bf046fd9ee38dfec4'),
-        tx.object('0x3593eec51a3b86c2d794e00bdcaaa9255e44bddbdc7cf3f6e5b62231b7dc187c'),
+        tx.object('0x8d9ca1c1bb9ccc36f32431709f9150fe06946b5a51ccc896e3f9b4adc5390194'),
+        tx.object('0xa78102f672af7b0f9e24f36b1fc3175b30e447b3c7b461a354c19833a5451b08'),
         tx.object(SUI_CLOCK_OBJECT_ID),
         coin_i_sui_,
         price,
