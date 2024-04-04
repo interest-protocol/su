@@ -39,22 +39,16 @@ module su::quote {
     treasury: &mut Treasury,
     base_in_value: u64,
     base_price: u64
-  ): u64 {
-    if (base_in_value == 0) return 0;
-
-    let (max_base_in_before_stability_mode, _) = treasury::max_mintable_f_coin(
-      treasury, 
-      base_price, 
-      vault::stability_collateral_ratio(vault)
-    );
-
+  ): (u64, u64, u64) {
+    if (base_in_value == 0) return (0, 0, 0);
+    
     let (max_base_in_before_rebalance_mode, _) = treasury::max_mintable_f_coin(
       treasury, 
       base_price, 
       vault::rebalance_collateral_ratio(vault)
     );
 
-    if (max_base_in_before_rebalance_mode == 0 || base_in_value >= max_base_in_before_rebalance_mode) return 0;
+    if (max_base_in_before_rebalance_mode == 0 || base_in_value >= max_base_in_before_rebalance_mode) return (0, 0, 0);
 
     let fee_amount = mint_f_coin_fee(vault, treasury, base_in_value, base_price);
 
@@ -62,11 +56,13 @@ module su::quote {
 
     let base_supply = treasury::base_supply(treasury);
 
-    if (base_supply + base_in_value >= base_balance_cap) return 0;
+    if (base_supply + base_in_value >= base_balance_cap) return (0, 0, 0);
 
     let su_state = treasury::su_state(treasury, base_price);
 
-    su_state::mint_x_coin(su_state, base_in_value) - fee_amount
+    let f_coin_amount = su_state::mint_f_coin(su_state, base_in_value) - fee_amount;
+
+    (f_coin_amount, fee_amount, compute_fee_percent(fee_amount, base_in_value))
   }  
 
   public fun mint_x_coin(
@@ -74,14 +70,8 @@ module su::quote {
     treasury: &mut Treasury,
     base_in_value: u64,
     base_price: u64
-  ): (u64, u64) {
-    if (base_in_value == 0) return (0, 0);  
-
-    let (max_base_in_before_stability_mode, _) = treasury::max_mintable_x_coin(
-      treasury, 
-      base_price, 
-      vault::stability_collateral_ratio(vault)
-    );
+  ): (u64, u64, u64, u64) {
+    if (base_in_value == 0) return (0, 0, 0, 0);  
 
     let (max_base_in_before_rebalance_mode, _) = treasury::max_mintable_x_coin(
       treasury, 
@@ -95,7 +85,7 @@ module su::quote {
 
     let base_supply = vault::base_supply(treasury);
 
-    if (base_supply + base_in_value >= base_balance_cap) return (0, 0);
+    if (base_supply + base_in_value >= base_balance_cap) return (0, 0, 0, 0);  
 
     let su_state = treasury::su_state(treasury, base_price);
 
@@ -107,7 +97,7 @@ module su::quote {
       min(mul_div_down(min(max_base_in_before_rebalance_mode, base_in_value), bonus_rate, PRECISION), rebalance_amount)
     } else 0;
 
-    (x_amount - fee_amount, bonus_amount)
+    (x_amount - fee_amount, bonus_amount, fee_amount, compute_fee_percent(fee_amount, base_in_value))
   }
 
   public fun redeem_f_coin(
@@ -115,8 +105,8 @@ module su::quote {
     treasury: &mut Treasury,
     f_coin_in_value: u64,
     base_price: u64,     
-  ): u64 {
-    if (f_coin_in_value == 0) return 0;  
+  ): (u64, u64, u64, u64) {
+    if (f_coin_in_value == 0) return (0, 0, 0, 0);  
 
     let (_, max_base_out_before_rebalance_mode) = treasury::max_redeemable_f_coin(
       treasury, 
@@ -128,7 +118,7 @@ module su::quote {
 
     let base_out = su_state::redeem(su_state, f_coin_in_value, 0);
 
-    let bonus_amout = if (max_base_out_before_rebalance_mode != 0) {
+    let bonus_amount = if (max_base_out_before_rebalance_mode != 0) {
       let rebalance_amount = treasury::rebalance_balance(treasury);
       let bonus_rate = treasury::bonus_rate(treasury);
       min(mul_div_down(min(max_base_out_before_rebalance_mode, base_out), bonus_rate, PRECISION), rebalance_amount)
@@ -136,7 +126,7 @@ module su::quote {
 
     let fee_amount = redeem_f_coin_fee(vault, treasury, base_out, base_price);
 
-    base_out - fee_amount
+    (base_out - fee_amount, bonus_amount, fee_amount, compute_fee_percent(fee_amount, base_out))
   }
 
   public fun redeem_x_coin(
@@ -144,8 +134,8 @@ module su::quote {
     treasury: &mut Treasury,
     x_coin_in_value: u64,
     base_price: u64   
-  ): u64 {
-    if (x_coin_in_value == 0) return 0;
+  ): (u64, u64, u64)  {
+    if (x_coin_in_value == 0) return (0, 0, 0); 
 
     let (_, max_base_out_before_rebalance_mode) = treasury::max_redeemable_x_coin(
       treasury, 
@@ -153,7 +143,7 @@ module su::quote {
       vault::rebalance_collateral_ratio(vault)
     );
 
-    if (max_base_out_before_rebalance_mode == 0) return 0;
+    if (max_base_out_before_rebalance_mode == 0) return (0, 0, 0); 
 
     let su_state = treasury::su_state(treasury, base_price);
 
@@ -161,7 +151,7 @@ module su::quote {
 
     let fee_amount = redeem_x_coin_fee(vault, treasury, base_out, base_price);
 
-    base_out - fee_amount
+    (base_out - fee_amount, fee_amount, compute_fee_percent(fee_amount, base_out))
   }
 
   public fun mint_f_coin_fee(
@@ -269,5 +259,9 @@ module su::quote {
 
   fun compute_fee(value: u64, fee: u64): u64 {
     mul_div_up(value, fee, PRECISION)
+  }
+
+  fun compute_fee_percent(fee_amount: u64, value: u64): u64 {
+    mul_div_up(fee_amount, PRECISION, value)
   }  
 }
