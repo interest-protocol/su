@@ -10,7 +10,7 @@ module su::oracle {
   // === Constants ===
 
   /// ! 5 minutes in milliseconds - TEST NET ONLY
-  const TIME_LIMIT: u64 = 300000;
+  const TIME_LIMIT: u64 = 3600000;
 
   /// ! 3% - TEST NET ONLY
   const PRICE_DEVIATION: u256 = 30000000000000000;

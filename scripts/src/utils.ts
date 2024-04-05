@@ -26,6 +26,8 @@ export const VAULT = '0x8d9ca1c1bb9ccc36f32431709f9150fe06946b5a51ccc896e3f9b4ad
 
 export const TREASURY = '0xa78102f672af7b0f9e24f36b1fc3175b30e447b3c7b461a354c19833a5451b08';
 
+const ORACLE = '0xe9da66287ae46f6458af969b399d451adba5616e78bbb66977bdea921340fdea';
+
 export const getId = (type: string): string | undefined => {
   try {
     const rawData = fs.readFileSync('./su.json', 'utf8');
@@ -41,19 +43,19 @@ export const requestPriceOracle = (txb: TransactionBlock): [TransactionBlock, an
   const request = txb.moveCall({
     typeArguments: [`${getId('package')}::oracle::SuOracle`],
     target: `${SUITEARS_PACKAGE_ID}::oracle::request`,
-    arguments: [txb.object('0xb9a2ba2cbb5dfc0171a79c215182cb34aa777010ef28a813e6b27413fbc51861')],
+    arguments: [txb.object(ORACLE)],
   });
 
   txb.moveCall({
     typeArguments: [`${getId('package')}::oracle::SuOracle`],
     target: `${COIN_X_ORACLE_PACKAGE_ID}::switchboard_oracle::report`,
-    arguments: [txb.object('0xb9a2ba2cbb5dfc0171a79c215182cb34aa777010ef28a813e6b27413fbc51861'), request, txb.object(SWITCHBOARD_AGGREGATOR)],
+    arguments: [txb.object(ORACLE), request, txb.object(SWITCHBOARD_AGGREGATOR)],
   });
 
   const [price] = txb.moveCall({
     typeArguments: [`${getId('package')}::oracle::SuOracle`],
     target: `${SUITEARS_PACKAGE_ID}::oracle::destroy_request`,
-    arguments: [txb.object('0xb9a2ba2cbb5dfc0171a79c215182cb34aa777010ef28a813e6b27413fbc51861'), request, txb.object(SUI_CLOCK_OBJECT_ID)],
+    arguments: [txb.object(ORACLE), request, txb.object(SUI_CLOCK_OBJECT_ID)],
   });
 
   return [txb, price];
