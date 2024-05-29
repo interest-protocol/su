@@ -123,7 +123,7 @@ module su::vault {
     share_object(vault);
   }
 
-  public fun mint_both(
+  public fun mint_all(
     self: &mut Vault,
     treasury: &mut Treasury,
     c: &Clock,

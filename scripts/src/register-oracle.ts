@@ -12,8 +12,8 @@ import { client, COIN_X_ORACLE_PACKAGE_ID, getId, keypair, SWITCHBOARD_AGGREGATO
       target: `${COIN_X_ORACLE_PACKAGE_ID}::switchboard_oracle::add`,
       typeArguments: [`${getId('package')}::oracle::SuOracle`],
       arguments: [
-        tx.object('0x2ececf053400f800d68cc352617384615bc079057b810d75573ea5309156db2d'),
-        tx.object('0x1a86869898590e9d133b56fbbe80f8705ea78ad8be65aef2ca9abea3d4c1bd90'),
+        tx.object('0x07f74eda1d94a6303d3a676e1693b265f76c866097a20b1c039b9954557fca51'),
+        tx.object('0xbfb5f3985cee3e03d7e4f855a368aa14899217e73e593dc1de02b9037df39172'),
         tx.object(SWITCHBOARD_AGGREGATOR),
       ],
     });
