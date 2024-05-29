@@ -2,15 +2,12 @@
 module su::f_sui {
   // === Imports ===
 
-  use std::option;
-
   use sui::coin::create_currency;
-  use sui::tx_context::{sender, TxContext};
   use sui::transfer::{public_transfer, public_share_object};
 
   // === Structs ===
   
-  struct F_SUI has drop {}
+  public struct F_SUI has drop {}
 
   // === Public-Mutative Functions ===
 
@@ -26,7 +23,7 @@ module su::f_sui {
     );
 
     public_share_object(coin_metadata);
-    public_transfer(treasury_cap, sender(ctx));
+    public_transfer(treasury_cap, ctx.sender());
   }
 
   // === Test Functions ===  

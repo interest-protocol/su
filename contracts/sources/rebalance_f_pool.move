@@ -4,14 +4,11 @@
 module su::rebalance_f_pool {
   // === Imports ===
 
-  use std::vector;
   use std::type_name::{Self, TypeName};
 
   use sui::bag::{Self, Bag};
   use sui::coin::{Self, Coin};
-  use sui::object::{Self, UID};
   use sui::clock::{Self, Clock};
-  use sui::tx_context::TxContext;
   use sui::transfer::share_object;
   use sui::vec_set::{Self, VecSet};
   use sui::vec_map::{Self, VecMap};
@@ -25,10 +22,6 @@ module su::rebalance_f_pool {
   use su::i_sui::I_SUI;
   use su::treasury::Treasury;
   use su::vault::{Self, Vault};
-
-  // === Friends ===
-
-  friend su::admin;
 
   // === Errors ===
 
@@ -45,7 +38,7 @@ module su::rebalance_f_pool {
 
   // === Structs ===
 
-  struct RebalancePool has key {
+  public struct RebalancePool has key {
     id: UID,
     start: u64,
     last_update: u64,
@@ -57,22 +50,21 @@ module su::rebalance_f_pool {
     rewards_map: VecMap<TypeName, PoolReward>,
   }
 
-  struct PoolReward has store, copy, drop {
+  public struct PoolReward has store, copy, drop {
     end: u64,
     rewards_per_second: u64,
     accrued_rewards_per_share: u256
   }
 
-  struct EpochSnapshot has store, copy, drop {
+  public struct EpochSnapshot has store, copy, drop {
     initial_f_balance: u64,
     final_f_balance: u64,
     base_balance: u64,
     accrued_rewards_per_share_map: VecMap<TypeName, PoolReward>,
   }
 
-  struct Account has key, store {
+  public struct Account has key, store {
     id: UID,
-    id_address: address, 
     epoch: u64,
     f_balance: u64,
     base_balance: u64,
@@ -80,7 +72,7 @@ module su::rebalance_f_pool {
     rewards_last_update: u64
   }
 
-  struct AccountReward has store {
+  public struct AccountReward has store {
     debt: u256,
     amount: u64
   }
@@ -106,11 +98,9 @@ module su::rebalance_f_pool {
 
   public fun new_account(ctx: &mut TxContext): Account {
     let id = object::new(ctx);
-    let id_address = object::uid_to_address(&id);
 
     Account {
       id: id,
-      id_address,
       epoch: 0,
       f_balance: 0,
       base_balance: 0,
@@ -255,14 +245,14 @@ module su::rebalance_f_pool {
 
   // === Public-Friend Functions ===
 
-  public(friend) fun new_reward<CoinType: drop>(self: &mut RebalancePool) {
+  public(package) fun new_reward<CoinType: drop>(self: &mut RebalancePool) {
     let key = type_name::get<CoinType>();
 
     bag::add(&mut self.rewards_balances, key, balance::zero<CoinType>());
     vec_map::insert(&mut self.rewards_map, key, PoolReward{ end: 0, rewards_per_second: 0, accrued_rewards_per_share: 0 });
   }
 
-  public(friend) fun add_rewards<CoinType: drop>(
+  public(package) fun add_rewards<CoinType: drop>(
     self: &mut RebalancePool, 
     clock: &Clock, 
     coin_in: Coin<CoinType>,
@@ -296,7 +286,7 @@ module su::rebalance_f_pool {
 
     account.epoch == last_snapshot_epoch;
 
-    let index = account_epoch;
+    let mut index = account_epoch;
 
     let rewards_vector = vec_set::keys(&self.rewards);
 
@@ -307,7 +297,7 @@ module su::rebalance_f_pool {
       
       let snapshot = table_vec::borrow(&self.epochs, index);
 
-      let j = 0;
+      let mut j = 0;
 
       while (num_of_rewards > 0) {
 
@@ -336,7 +326,7 @@ module su::rebalance_f_pool {
     let rewards_vector = vec_set::keys(&self.rewards);
     let num_of_rewards = vector::length(rewards_vector);
 
-    let index = 0;
+    let mut index = 0;
 
     while (num_of_rewards > index) {
       let reward_type_name = vector::borrow(rewards_vector, index);
@@ -373,7 +363,7 @@ module su::rebalance_f_pool {
 
     if (f_balance_value == 0) return;
 
-    let index = 0;
+    let mut index = 0;
     let extra_rewards_length = vec_set::size(&self.rewards);
 
     let reward_type_names = vec_set::keys(&self.rewards);

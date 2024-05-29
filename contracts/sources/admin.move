@@ -7,9 +7,7 @@ module su::admin {
   use sui::coin::Coin;
   use sui::clock::Clock;
   use sui::transfer::transfer;
-  use sui::object::{Self, UID};
-  use sui::coin::{Self, CoinMetadata};
-  use sui::tx_context::{sender, TxContext};
+  use sui::coin::CoinMetadata;
 
   use su::i_sui::I_SUI;
   use su::vault::{Self, Vault};
@@ -18,7 +16,7 @@ module su::admin {
 
   // === Structs ===
 
-  struct Admin has key, store {
+  public struct Admin has key, store {
     id: UID
   }
 
@@ -26,27 +24,27 @@ module su::admin {
 
   #[allow(unused_use)]
   fun init(ctx: &mut TxContext) {
-    transfer(Admin { id: object::new(ctx) }, sender(ctx));  
+    transfer(Admin { id: object::new(ctx) }, ctx.sender());  
   }  
 
   public fun remove_fee(_self: &Admin, treasury: &mut Treasury, amount: u64, ctx: &mut TxContext): Coin<I_SUI> {
-    treasury::remove_admin_fee(treasury, amount, ctx)
+    treasury.remove_admin_fee(amount, ctx)
   }
 
   public fun set_bonus_rate(_self: &Admin, treasury: &mut Treasury, bonus_rate: u64) {
-    treasury::set_bonus_rate(treasury,bonus_rate);
+    treasury.set_bonus_rate(bonus_rate);
   }  
 
   public fun set_treasury_fees(_self: &Admin, treasury: &mut Treasury, rebalance_fee: u64, reserve_fee: u64) {
-    treasury::set_fees(treasury, rebalance_fee, reserve_fee);
+    treasury.set_fees(rebalance_fee, reserve_fee);
   }
 
   public fun set_oracle_id_address(_self: &Admin, vault: &mut Vault, oracle_id_address: address) {
-    vault::set_oracle_id_address(vault, oracle_id_address);
+    vault.set_oracle_id_address(oracle_id_address);
   }  
 
-  public(friend) fun set_base_balance_cap(_self: &Admin, treasury: &mut Treasury, new_base_balance_cap: u64) {
-    treasury::set_base_balance_cap(treasury, new_base_balance_cap)
+  public(package) fun set_base_balance_cap(_self: &Admin, treasury: &mut Treasury, new_base_balance_cap: u64) {
+    treasury.set_base_balance_cap(new_base_balance_cap)
   }   
 
   public fun set_f_fees(
@@ -57,7 +55,7 @@ module su::admin {
     stability_mint: u64,
     stability_redeem: u64
   ) {
-    vault::set_fees(vault, false, standard_mint, standard_redeem, stability_mint, stability_redeem);
+    vault.set_fees(false, standard_mint, standard_redeem, stability_mint, stability_redeem);
   }
 
   public fun set_x_fees(
@@ -68,7 +66,7 @@ module su::admin {
     stability_mint: u64,
     stability_redeem: u64
   ) {
-    vault::set_fees(vault, true, standard_mint, standard_redeem, stability_mint, stability_redeem);
+    vault.set_fees(true, standard_mint, standard_redeem, stability_mint, stability_redeem);
   }
 
   public fun set_stability_collateral_ratio(
@@ -84,11 +82,11 @@ module su::admin {
     vault: &mut Vault,    
     rebalance_collateral_ratio: u64
   ) {
-    vault::set_rebalance_collateral_ratio(vault, rebalance_collateral_ratio);
+    vault.set_rebalance_collateral_ratio(rebalance_collateral_ratio);
   }   
 
   public fun new_rebalance_f_pool_reward<CoinType: drop>(rebalance_pool: &mut RebalancePool) {
-    rebalance_f_pool::new_reward<CoinType>(rebalance_pool);
+    rebalance_pool.new_reward<CoinType>();
   }
 
   public fun add_rebalance_f_pool_rewards<CoinType: drop>(
@@ -107,8 +105,7 @@ module su::admin {
     metadata: &mut CoinMetadata<T>, 
     name: string::String
   ) {
-    let treasury_cap = treasury::treasury_cap_mut<T>(treasury);
-    coin::update_name(treasury_cap, metadata, name);
+    treasury::treasury_cap_mut<T>(treasury).update_name(metadata, name);
   }
 
   public fun update_symbol<T: drop>(
@@ -117,8 +114,7 @@ module su::admin {
     metadata: &mut CoinMetadata<T>, 
     symbol: ascii::String
   ) {
-    let treasury_cap = treasury::treasury_cap_mut<T>(treasury);
-    coin::update_symbol(treasury_cap, metadata, symbol);
+    treasury::treasury_cap_mut<T>(treasury).update_symbol(metadata, symbol);
   }
 
   public fun update_description<T: drop>(
@@ -127,8 +123,7 @@ module su::admin {
     metadata: &mut CoinMetadata<T>, 
     description: string::String
   ) {
-    let treasury_cap = treasury::treasury_cap_mut<T>(treasury);
-    coin::update_description(treasury_cap, metadata, description);
+    treasury::treasury_cap_mut<T>(treasury).update_description(metadata, description);
   }
 
   public fun update_icon_url<T: drop>(
@@ -137,8 +132,7 @@ module su::admin {
     metadata: &mut CoinMetadata<T>, 
     url: ascii::String
   ) {
-    let treasury_cap = treasury::treasury_cap_mut<T>(treasury);
-    coin::update_icon_url(treasury_cap, metadata, url);
+    treasury::treasury_cap_mut<T>(treasury).update_icon_url(metadata, url);
   }    
 
   // === Test Functions ===  

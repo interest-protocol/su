@@ -6,13 +6,20 @@ module su::ema {
   use suitears::int;
   use suitears::fixed_point_wad;
 
+  use su::cast;
+
+  // Method Aliases
+
+  use fun cast::to_u64 as u256.to_u64;
+  use fun cast::to_u256 as u64.to_u256;  
+
   // === Constants ===
 
   const PRECISION: u256 = 1_000_000_000;
 
   // === Structs ===
 
-  struct EMA has store, copy, drop {
+  public struct EMA has store, copy, drop {
     last_timestamp: u64,
     sample_interval: u64,
     last_value: u64,
@@ -45,7 +52,7 @@ module su::ema {
     if (current_s > self.last_timestamp) {
 
       let dt = current_s - self.last_timestamp;
-      let e = ((dt as u256) * PRECISION) / (self.sample_interval as u256);
+      let e = (dt.to_u256() * PRECISION) / self.sample_interval.to_u256();
 
       if (e > 41000000000) {
         self.last_value
@@ -57,12 +64,12 @@ module su::ema {
           last_ema_value,
           alpha
         ) = (
-          (self.last_value as u256),
-          (self.last_ema_value as u256),
+          self.last_value.to_u256(),
+          self.last_ema_value.to_u256(),
           (alpha / PRECISION)
         );
 
-        ((last_value * (PRECISION - alpha) + last_ema_value * alpha) / PRECISION as u64)
+        ((last_value * (PRECISION - alpha) + last_ema_value * alpha) / PRECISION).to_u64()
       }
     } else {
       self.last_ema_value

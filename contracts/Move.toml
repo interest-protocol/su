@@ -3,6 +3,7 @@ name = "Su"
 version = "1.0.0"
 license = "MIT"
 authors = ["Jose Cerqueira (jose@interestprotocol.com)"]
+edition = "2024.beta"
 
 [dependencies]
 MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "framework/testnet"  }

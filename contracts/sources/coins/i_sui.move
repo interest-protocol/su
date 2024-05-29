@@ -2,18 +2,14 @@
 module su::i_sui {
   // === Imports ===
 
-  use std::option;
-
-  use sui::object::{Self, UID};
-  use sui::tx_context::TxContext;
   use sui::transfer::{public_share_object, share_object};
   use sui::coin::{Self, create_currency, Coin, TreasuryCap};
 
   // === Structs ===
   
-  struct I_SUI has drop {}
+  public struct I_SUI has drop {}
 
-  struct Treasury has key {
+  public struct Treasury has key {
     id: UID,
     cap: TreasuryCap<I_SUI>
   }

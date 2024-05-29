@@ -2,7 +2,6 @@ module su::oracle {
   // === Imports ===
 
   use sui::transfer::public_transfer;
-  use sui::tx_context::{Self, TxContext};
 
   use suitears::owner;
   use suitears::oracle;
@@ -17,15 +16,15 @@ module su::oracle {
 
   // === Structs ===
 
-  struct SuOracle has drop {}
+  public struct SuOracle has drop {}
 
   // === Public-Mutative Functions ===
 
   fun init(ctx: &mut TxContext) {
-    let oracle_cap = owner::new(SuOracle {}, vector[], ctx);
+    let mut oracle_cap = owner::new(SuOracle {}, vector[], ctx);
     let su_oracle = oracle::new(&mut oracle_cap, SuOracle {}, vector[], TIME_LIMIT, PRICE_DEVIATION, ctx);
 
-    oracle::share(su_oracle);
-    public_transfer(oracle_cap, tx_context::sender(ctx));
+    su_oracle.share();
+    public_transfer(oracle_cap, ctx.sender());
   } 
 }

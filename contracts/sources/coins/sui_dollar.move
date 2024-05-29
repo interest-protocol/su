@@ -1,4 +1,4 @@
-module su::x_sui {
+module su::sui_dollar {
   // === Imports ===
 
   use sui::coin::create_currency;
@@ -6,17 +6,17 @@ module su::x_sui {
 
   // === Structs ===
   
-  public struct X_SUI has drop {}
+  public struct SUI_DOLLAR has drop {}
 
   // === Public-Mutative Functions ===
 
-  fun init(otw: X_SUI, ctx: &mut TxContext) {
+  fun init(otw: SUI_DOLLAR, ctx: &mut TxContext) {
     let (treasury_cap, coin_metadata) = create_currency(
       otw,
       9,
-      b"xSui",
-      b"Leveraged Sui",
-      b"A leveraged coin with a beta of 0.9",
+      b"SuiD",
+      b"Sui Dollar",
+      b"Su protocol stablecoin.",
       option::none(),
       ctx
     );
@@ -29,6 +29,6 @@ module su::x_sui {
   
   #[test_only]
   public fun init_for_testing(ctx: &mut TxContext) {
-    init(X_SUI {}, ctx);
+    init(SUI_DOLLAR {}, ctx);
   }
 }
