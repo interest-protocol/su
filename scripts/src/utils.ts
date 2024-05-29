@@ -26,7 +26,7 @@ export const VAULT = '0xadfd43e2ed8c9b27d242076b2a00aa46163b8bcba702b21f0b9705eb
 
 export const TREASURY = '0x075034271340d249054bf950c852b03cf6f6f2347813e0332bf86163900a923f';
 
-const ORACLE = '0x07f74eda1d94a6303d3a676e1693b265f76c866097a20b1c039b9954557fca51';
+const ORACLE = '0xb581ff1a97da5bc298e700bb18843798dbce4b97e06ffec2e60d81c13301a3cf';
 
 export const getId = (type: string): string | undefined => {
   try {

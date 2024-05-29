@@ -11,16 +11,16 @@ import { client, getId, keypair, requestPriceOracle } from './utils';
 
     const [coin_i_sui_] = txb.moveCall({
       target: `${getId('package')}::i_sui::mint`,
-      arguments: [txb.object('0xfda8eb4e7f4a8bc85e8486bda76532cbc28d3ce1731dedc888176d301ab0e9b2'), txb.pure('1000000000000')],
+      arguments: [txb.object('0xe362e8af74717dd9c617a315205f6e05c7481ce676a907e1b2951f00fdcbb098'), txb.pure('1000000000000')],
     });
 
     const [tx, price] = requestPriceOracle(txb);
 
     const [coin_d, coin_f, coin_x] = tx.moveCall({
-      target: `${getId('package')}::vault::mint_both`,
+      target: `${getId('package')}::vault::mint_all`,
       arguments: [
-        tx.object('0xadfd43e2ed8c9b27d242076b2a00aa46163b8bcba702b21f0b9705ebb8698519'),
-        tx.object('0x075034271340d249054bf950c852b03cf6f6f2347813e0332bf86163900a923f'),
+        tx.object('0x287c1236628767a73c69bb705ed83845202d2da6bb9713f1ada1a359bd70e899'),
+        tx.object('0x3cbb1e87c276c08acbf646c2cb0764977e4eb8d3f33c89a3e6350d4d321f53d3'),
         tx.object(SUI_CLOCK_OBJECT_ID),
         coin_i_sui_,
         price,
