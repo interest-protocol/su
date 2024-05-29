@@ -44,7 +44,7 @@ module su::treasury {
   const F_BETA: u64 = 100_000_000;
   // 1 Unit or 100%
   const PRECISION: u64 = 1_000_000_000;
-  const INITIAL_MINT_RATIO: u256 = 500_000_000;
+  const INITIAL_MINT_RATIO: u256 = 300_000_000;
   const THIRTY_MINUTES_IN_SECONDS: u64 = 1800;
 
   // Mint Options
@@ -93,7 +93,7 @@ module su::treasury {
 
     let mut cap_map = object_bag::new(ctx);
 
-    cap_map.add(type_name::get<F_SUI>(), d_treasury_cap);
+    cap_map.add(type_name::get<SUI_DOLLAR>(), d_treasury_cap);
     cap_map.add(type_name::get<F_SUI>(), f_treasury_cap);
     cap_map.add(type_name::get<X_SUI>(), x_treasury_cap);
 

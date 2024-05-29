@@ -12,8 +12,9 @@ import { client, getId, keypair, requestPriceOracle } from './utils';
     tx.moveCall({
       target: `${getId('package')}::vault::share_genesis_state`,
       arguments: [
-        tx.object('0x1c1ae9b80d32d3f50a06dca57d42594f00f0eef7b074ffd01ca030ee53c9648a'),
-        tx.object('0xd9baddab6aec8e3da594b0f0dfe256cb1c7197f10913f3a188ff7c850543a46d'),
+        tx.object('0x56765687fd4a71f8e58073dc30b52744e5310bf84559f67338a2ea19fa8ae371'),
+        tx.object('0x3953ae956abc2005de492e18ba4959e9db67bd67e5c058b0a62712a749c975f0'),
+        tx.object('0xe7b447bb77b6e8502b81d4281468a043ce545f1f17370064b14393d479cd5444'),
         tx.object(SUI_CLOCK_OBJECT_ID),
         price,
         tx.pure('100000000000000000'),
