@@ -1,7 +1,7 @@
 [package]
 name = "SuTests"
 version = "1.0.0"
-edition = "2024.alpha"
+edition = "2024.beta"
 license = "MIT"
 authors = ["Jose Cerqueira (jose@interestprotocol.com)"]
 

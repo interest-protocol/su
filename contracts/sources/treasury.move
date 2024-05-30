@@ -434,7 +434,7 @@ module su::treasury {
       f_coin.join(coin::mint(treasury_f_cap, su_state.mint_f_coin(base_in_value), ctx));
     } else if (mint_option == MINT_D_COIN) {
       let treasury_f_cap = treasury_cap_mut_impl<SUI_DOLLAR>(&mut state.cap_map);
-      d_coin.join(coin::mint(treasury_f_cap, su_state.mint_f_coin(base_in_value), ctx));
+      d_coin.join(coin::mint(treasury_f_cap, su_state.mint_d_coin(base_in_value), ctx));
     } else if (mint_option == MINT_X_COIN) {
       let treasury_x_cap = treasury_cap_mut_impl<X_SUI>(&mut state.cap_map);
       x_coin.join(coin::mint(treasury_x_cap, su_state.mint_x_coin(base_in_value), ctx));

@@ -102,7 +102,7 @@ module su::su_state {
   } 
 
   public fun collateral_ratio(self: SuState): u64 {
-    ((self.base_supply * self.base_nav * PRECISION) / (self.f_supply * self.f_nav)).to_u64()
+    ((self.base_supply * self.base_nav * PRECISION) / ((self.f_supply * self.f_nav) + (self.d_supply * self.d_nav))).to_u64()
   }
 
   public fun max_mintable_d_coin(
@@ -179,7 +179,7 @@ module su::su_state {
     if (base_value >= d_value) return (0, 0);    
 
     let new_collateral_ratio = new_collateral_ratio - PRECISION;
-    let delta = d_value - self.base_value;
+    let delta = d_value - base_value;
 
     (
       (delta / (new_collateral_ratio * self.d_nav)).to_u64(),
@@ -199,7 +199,7 @@ module su::su_state {
     if (base_value >= f_value) return (0, 0);    
 
     let new_collateral_ratio = new_collateral_ratio - PRECISION;
-    let delta = f_value - self.base_value;
+    let delta = f_value - base_value;
 
     (
       (delta / (new_collateral_ratio * self.f_nav)).to_u64(),
@@ -213,12 +213,11 @@ module su::su_state {
   ): (u64, u64) {
     let new_collateral_ratio = new_collateral_ratio.to_u256();
 
-    let f_value = new_collateral_ratio * self.f_supply * self.f_nav;
     let df_value = (new_collateral_ratio * self.f_supply * self.f_nav) + (new_collateral_ratio * self.d_supply * self.d_nav);
 
-    if (f_value >= df_value) return (0, 0);  
+    if (df_value >= self.base_value) return (0, 0);  
 
-    let delta = df_value - f_value;
+    let delta = self.base_value - df_value;
 
     (
       (delta / (self.x_nav * PRECISION)).to_u64(),
@@ -260,7 +259,7 @@ module su::su_state {
 
     if (self.x_supply == 0) return (((f_coin_in * self.f_nav) + (d_coin_in * self.d_nav)) / self.base_nav).to_u64();
 
-    let x_value = self.base_supply * self.base_nav - ((f_coin_in * self.f_nav) + (d_coin_in * self.d_nav));
+    let x_value = self.base_supply * self.base_nav - ((self.f_supply * self.f_nav) + (self.d_supply * self.d_nav));
 
     let mut base_out = (f_coin_in * self.f_nav) + (d_coin_in * self.d_nav);
     base_out = base_out + (x_coin_in * x_value / self.x_supply);

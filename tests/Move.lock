@@ -2,7 +2,7 @@
 
 [move]
 version = 0
-manifest_digest = "4B6B4EA8CAD7D4EAC273DFA76D7F946C974CAA7BEE528A2FE0363F09693320C2"
+manifest_digest = "50DB6C72053597B4CCC3A4E2AE15603230B144A588AD928097DFA724853E9684"
 deps_digest = "F9B494B64F0615AED0E98FC12A85B85ECD2BC5185C22D30E7F67786BB52E507C"
 
 dependencies = [
@@ -13,14 +13,38 @@ dependencies = [
 ]
 
 [[move.package]]
+name = "CoinXOracle"
+source = { git = "https://github.com/interest-protocol/coin-x-oracle.git", rev = "main", subdir = "contracts" }
+
+dependencies = [
+  { name = "MoveStdlib" },
+  { name = "Pyth" },
+  { name = "Sui" },
+  { name = "SuiTears" },
+  { name = "SwitchboardStdLib" },
+  { name = "Wormhole" },
+]
+
+[[move.package]]
 name = "MoveStdlib"
 source = { git = "https://github.com/MystenLabs/sui.git", rev = "framework/testnet", subdir = "crates/sui-framework/packages/move-stdlib" }
+
+[[move.package]]
+name = "Pyth"
+source = { git = "https://github.com/interest-protocol/coin-x-oracle.git", rev = "main", subdir = "dependencies/pyth" }
+
+dependencies = [
+  { name = "MoveStdlib" },
+  { name = "Sui" },
+  { name = "Wormhole" },
+]
 
 [[move.package]]
 name = "Su"
 source = { local = "../contracts" }
 
 dependencies = [
+  { name = "CoinXOracle" },
   { name = "MoveStdlib" },
   { name = "Sui" },
   { name = "SuiTears" },
@@ -43,7 +67,25 @@ dependencies = [
   { name = "Sui" },
 ]
 
+[[move.package]]
+name = "SwitchboardStdLib"
+source = { git = "https://github.com/switchboard-xyz/sbv2-sui.git", rev = "main", subdir = "move/testnet/switchboard_std/" }
+
+dependencies = [
+  { name = "MoveStdlib" },
+  { name = "Sui" },
+]
+
+[[move.package]]
+name = "Wormhole"
+source = { git = "https://github.com/interest-protocol/coin-x-oracle.git", rev = "main", subdir = "dependencies/wormhole" }
+
+dependencies = [
+  { name = "MoveStdlib" },
+  { name = "Sui" },
+]
+
 [move.toolchain-version]
-compiler-version = "1.18.0"
-edition = "legacy"
+compiler-version = "1.24.1"
+edition = "2024.beta"
 flavor = "sui"
