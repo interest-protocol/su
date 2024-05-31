@@ -36,6 +36,7 @@ module su::treasury {
   const EInvalidMintOption: u64 = 5;
   const EBaseBalanceCapReached: u64 = 6;
   const EFeesMustBeSmallerThanPrecision: u64 = 7;
+  const ECoinsMustStartWithNoSupply: u64 = 8;
 
   // === Constants ===
   
@@ -90,6 +91,8 @@ module su::treasury {
     base_balance_cap: u64,
     ctx: &mut TxContext
   ) {
+
+    assert!(d_treasury_cap.total_supply() + f_treasury_cap.total_supply() + x_treasury_cap.total_supply() == 0, ECoinsMustStartWithNoSupply);
 
     let mut cap_map = object_bag::new(ctx);
 

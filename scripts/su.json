@@ -1,30 +1,30 @@
 [
   {
-    "type": "rebalance_f_pool::RebalancePool",
-    "id": "0x1e0f3ced0695e25b18402e9db971215aa49eeac32a68652a217e9c0dff5dc718"
-  },
-  {
-    "type": "admin::Admin",
-    "id": "0x7f59fd4f4877fbf664f2049e52471262d230eb825068ad03761c7e952a8b3486"
-  },
-  {
-    "type": "package",
-    "id": "0xaf2737df77e397ae483d4171f374a7d71c14529ed82efbc7ff734514d607d523"
-  },
-  {
-    "type": "oracle::Oracle<0xaf2737df77e397ae483d4171f374a7d71c14529ed82efbc7ff734514d607d523::oracle::SuOracle>",
-    "id": "0xb581ff1a97da5bc298e700bb18843798dbce4b97e06ffec2e60d81c13301a3cf"
-  },
-  {
     "type": "",
-    "id": "0xba85059fcdb5044160abb7a117a3b121ed37088f6756f8313bd495de054bfe33"
+    "id": "0x2806a66a2edeb310ec53fb39fee9208f9267f63abcb22fbceddd9cdfef1977eb"
+  },
+  {
+    "type": "rebalance_f_pool::RebalancePool",
+    "id": "0x8b77b51471373f8d71ca0a3375e037c8339f864f4df422d6dad4c311ea4b70bf"
   },
   {
     "type": "i_sui::Treasury",
-    "id": "0xe362e8af74717dd9c617a315205f6e05c7481ce676a907e1b2951f00fdcbb098"
+    "id": "0x904845ee460e4e1fd5666eca33167f13cf24c92fc0bf2bbc22026efc6ddfd28d"
   },
   {
-    "type": "owner::OwnerCap<0xaf2737df77e397ae483d4171f374a7d71c14529ed82efbc7ff734514d607d523::oracle::SuOracle>",
-    "id": "0xf2a9f4aaca9561f51d031f045cbdf223fe49e30c97beb7c856cef76744bdfde0"
+    "type": "oracle::Oracle<0xbb6e10d57c6bb1d2f0b33933e02cb128b2f6a386a8f8d4a50034eed4bceb4d9b::oracle::SuOracle>",
+    "id": "0xac54a5196667dc8041d845f9fadb2bc999d2607a2acfe239a0c690d424972bdb"
+  },
+  {
+    "type": "package",
+    "id": "0xbb6e10d57c6bb1d2f0b33933e02cb128b2f6a386a8f8d4a50034eed4bceb4d9b"
+  },
+  {
+    "type": "admin::Admin",
+    "id": "0xdac2dd3cf99fe9c513e8b8f8f283f8f9b35ab18a69e8bb5b4b228a69d6b12db2"
+  },
+  {
+    "type": "owner::OwnerCap<0xbb6e10d57c6bb1d2f0b33933e02cb128b2f6a386a8f8d4a50034eed4bceb4d9b::oracle::SuOracle>",
+    "id": "0xeb2ecadc73b39f44a7cb26c4505868967466759fb174c06c8a61757412546e68"
   }
 ]
