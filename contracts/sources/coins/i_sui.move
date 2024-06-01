@@ -16,6 +16,7 @@ module su::i_sui {
 
   // === Public-Mutative Functions ===
 
+  #[allow(lint(share_owned))]
   fun init(otw: I_SUI, ctx: &mut TxContext) {
     let (treasury_cap, coin_metadata) = create_currency(
       otw,

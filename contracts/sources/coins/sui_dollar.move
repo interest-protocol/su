@@ -10,6 +10,7 @@ module su::sui_dollar {
 
   // === Public-Mutative Functions ===
 
+  #[allow(lint(share_owned))]
   fun init(otw: SUI_DOLLAR, ctx: &mut TxContext) {
     let (treasury_cap, coin_metadata) = create_currency(
       otw,

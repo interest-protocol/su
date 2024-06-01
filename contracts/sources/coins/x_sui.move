@@ -10,13 +10,14 @@ module su::x_sui {
 
   // === Public-Mutative Functions ===
 
+  #[allow(lint(share_owned))]
   fun init(otw: X_SUI, ctx: &mut TxContext) {
     let (treasury_cap, coin_metadata) = create_currency(
       otw,
       9,
       b"xSui",
       b"Leveraged Sui",
-      b"A leveraged coin with a beta of 0.9",
+      b"A leveraged coin without funding rate nor liquidations.",
       option::none(),
       ctx
     );

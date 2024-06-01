@@ -523,6 +523,7 @@ module su::treasury {
     self.inner.load_value_mut()
   }
 
+  #[allow(unused)]
   fun maybe_upgrade_treasury_state_to_latest(self: &mut Treasury) {
     // * IMPORTANT: When new versions are added, we need to explicitly upgrade here.
     assert!(self.inner.version() == STATE_VERSION_V1, EInvalidVersion);

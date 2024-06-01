@@ -11,6 +11,7 @@ module su::f_sui {
 
   // === Public-Mutative Functions ===
 
+  #[allow(lint(share_owned))]
   fun init(otw: F_SUI, ctx: &mut TxContext) {
     let (treasury_cap, coin_metadata) = create_currency(
       otw,
