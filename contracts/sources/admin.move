@@ -14,6 +14,13 @@ module su::admin {
   use su::treasury::{Self, Treasury};
   use su::rebalance_f_pool::{Self, RebalancePool};
 
+  // === Constants ===
+
+  // Fee Options
+  const SUID: u8 = 0;
+  const FSUI: u8 = 1;
+  const XSUI: u8 = 2;
+
   // === Structs ===
 
   public struct Admin has key, store {
@@ -47,6 +54,17 @@ module su::admin {
     treasury.set_base_balance_cap(new_base_balance_cap)
   }   
 
+  public fun set_d_fees(
+    _self: &Admin, 
+    vault: &mut Vault,    
+    standard_mint: u64,
+    standard_redeem: u64,
+    stability_mint: u64,
+    stability_redeem: u64
+  ) {
+    vault.set_fees(SUID, standard_mint, standard_redeem, stability_mint, stability_redeem);
+  }
+
   public fun set_f_fees(
     _self: &Admin, 
     vault: &mut Vault,    
@@ -55,7 +73,7 @@ module su::admin {
     stability_mint: u64,
     stability_redeem: u64
   ) {
-    vault.set_fees(false, standard_mint, standard_redeem, stability_mint, stability_redeem);
+    vault.set_fees(FSUI, standard_mint, standard_redeem, stability_mint, stability_redeem);
   }
 
   public fun set_x_fees(
@@ -66,7 +84,7 @@ module su::admin {
     stability_mint: u64,
     stability_redeem: u64
   ) {
-    vault.set_fees(true, standard_mint, standard_redeem, stability_mint, stability_redeem);
+    vault.set_fees(XSUI, standard_mint, standard_redeem, stability_mint, stability_redeem);
   }
 
   public fun set_stability_collateral_ratio(

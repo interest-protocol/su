@@ -38,6 +38,7 @@ module su::vault {
   const EZeroXCoinIsNotAllowed: u64 = 11;
   const ECannotRedeemXCoinOnRebalanceMode: u64 = 12;
   const EInvalidBaseCoinAmountOut: u64 = 13;
+  const EInvalidCoin: u64 = 14;
 
   // === Constants ===
 
@@ -49,6 +50,11 @@ module su::vault {
   const MINT_F_COIN: u8 = 1;
   const MINT_X_COIN: u8 = 2;
   const MINT_ALL: u8 = 3;
+
+  // Fee Options
+  const SUID: u8 = 0;
+  const FSUI: u8 = 1;
+  const XSUI: u8 = 2;
 
   // === Structs ===
 
@@ -603,12 +609,14 @@ module su::vault {
 
   public(package) fun set_fees(
     self: &mut Vault,
-    is_x: bool,     
+    coin: u8,     
     standard_mint: u64,
     standard_redeem: u64,
     stability_mint: u64,
     stability_redeem: u64
   ) {
+    assert!(XSUI >= coin, EInvalidCoin);
+
     let fees = Fees {
       standard_mint,
       standard_redeem,
@@ -616,11 +624,14 @@ module su::vault {
       stability_redeem
     };   
 
-    if (is_x) {
-      self.x_fees = fees;
-    } else {
+    if (coin == SUID)
+      self.d_fees = fees;
+
+    if (coin == FSUI)
       self.f_fees = fees;
-    };
+
+    if (coin == XSUI)
+      self.x_fees = fees;
   }
 
   public(package) fun set_stability_collateral_ratio(
